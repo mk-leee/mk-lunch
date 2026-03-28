@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>오늘 뭐 먹지?</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #FF6B35;
+    --primary-light: #FF8C5A;
+    --secondary: #FFB347;
+    --bg: #FFF8F3;
+    --surface: #FFFFFF;
+    --text: #2D2D2D;
+    --muted: #9E9E9E;
+    --accent: #4CAF82;
+    --danger: #E53935;
+    --border: #F0E8E0;
+    --shadow: 0 2px 12px rgba(255,107,53,0.10);
+    --nav-h: 64px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  /* ── NAV ── */
+  .nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    height: var(--nav-h);
+    background: var(--surface);
+    display: flex; align-items: stretch;
+    border-top: 1px solid var(--border);
+    z-index: 100;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; background: none; border: none; cursor: pointer;
+    font-size: 10px; font-family: inherit; color: var(--muted);
+    transition: color 0.2s;
+  }
+  .nav-btn.active { color: var(--primary); }
+  .nav-btn svg { width: 22px; height: 22px; }
+  /* ── SCREENS ── */
+  .screen { display: none; padding: 20px 16px calc(var(--nav-h) + 20px); min-height: 100dvh; }
+  .screen.active { display: block; }
+  /* ── HEADER ── */
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 0 12px;
+  }
+  .page-title { font-size: 22px; font-weight: 900; color: var(--text); }
+  /* ── HOME ── */
+  .home-greeting {
+    padding: 20px 0 8px;
+    font-size: 14px; color: var(--muted);
+  }
+  .home-greeting strong { color: var(--primary); font-size: 20px; font-weight: 900; display: block; margin-top: 2px; }
+
+  .category-filter {
+    display: flex; gap: 8px; overflow-x: auto; padding: 8px 0;
+    scrollbar-width: none;
+  }
+  .category-filter::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0; padding: 7px 16px; border-radius: 20px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--surface);
+    color: var(--muted); transition: all 0.18s;
+    font-family: inherit;
+  }
+  .chip.active {
+    background: var(--primary); border-color: var(--primary); color: #fff;
+  }
+
+  /* ── ROULETTE ── */
+  .roulette-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 0 20px;
+    gap: 20px;
+  }
+  .spin-btn {
+    width: 180px; height: 180px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px;
+    box-shadow: 0 8px 32px rgba(255,107,53,0.35), 0 2px 8px rgba(0,0,0,0.08);
+    transition: transform 0.12s, box-shadow 0.12s;
+    position: relative; overflow: hidden;
+  }
+  .spin-btn::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.25), transparent 60%);
+    border-radius: 50%;
+  }
+  .spin-btn:active { transform: scale(0.94); box-shadow: 0 4px 16px rgba(255,107,53,0.25); }
+  .spin-btn .spin-icon { font-size: 48px; line-height:1; }
+  .spin-btn .spin-label { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+  @keyframes spin-wobble {
+    0%   { transform: rotate(0deg) scale(1); }
+    15%  { transform: rotate(-12deg) scale(1.04); }
+    35%  { transform: rotate(14deg) scale(1.06); }
+    55%  { transform: rotate(-10deg) scale(1.05); }
+    75%  { transform: rotate(8deg) scale(1.03); }
+    90%  { transform: rotate(-4deg) scale(1.01); }
+    100% { transform: rotate(0deg) scale(1); }
+  }
+  .spin-btn.spinning { animation: spin-wobble 0.9s ease; pointer-events: none; }
+
+  /* ── RESULT CARD ── */
+  .result-card {
+    width: 100%; background: var(--surface);
+    border-radius: 20px; padding: 20px;
+    box-shadow: var(--shadow);
+    border: 2px solid var(--border);
+    transition: all 0.3s;
+  }
+  .result-card.revealed {
+    border-color: var(--primary);
+    box-shadow: 0 4px 24px rgba(255,107,53,0.18);
+  }
+  .result-empty {
+    text-align: center; color: var(--muted); font-size: 14px; padding: 8px 0;
+  }
+  .result-restaurant { font-size: 20px; font-weight: 900; color: var(--text); }
+  .result-menu { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .result-cat-badge {
+    display: inline-block; margin-top: 8px;
+    padding: 3px 10px; border-radius: 12px;
+    background: #FFF0E8; color: var(--primary);
+    font-size: 12px; font-weight: 700;
+  }
+  .result-actions {
+    display: flex; gap: 10px; margin-top: 14px;
+  }
+  .btn { padding: 13px; border-radius: 12px; border: none; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 14px; transition: all 0.15s; }
+  .btn-primary { background: var(--primary); color: #fff; flex: 1; }
+  .btn-primary:active { background: var(--primary-light); }
+  .btn-outline { background: var(--surface); color: var(--muted); border: 1.5px solid var(--border); flex: 1; }
+  .btn-outline:active { background: var(--bg); }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-danger { background: #FFF0F0; color: var(--danger); border: 1.5px solid #FFCDD2; }
+
+  /* ── EXCLUDED NOTICE ── */
+  .excluded-notice {
+    background: #FFF3E0; border: 1px solid #FFE0B2; border-radius: 10px;
+    padding: 10px 14px; font-size: 12px; color: #E65100;
+    display: flex; align-items: center; gap: 6px; margin-top: 0;
+  }
+
+  /* ── RESTAURANT LIST ── */
+  .search-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border-radius: 12px; padding: 0 14px;
+    border: 1.5px solid var(--border); margin-bottom: 4px;
+  }
+  .search-bar input {
+    flex: 1; border: none; outline: none; background: none;
+    font-family: inherit; font-size: 14px; padding: 13px 0;
+    color: var(--text);
+  }
+  .search-bar input::placeholder { color: var(--muted); }
+
+  .restaurant-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .restaurant-card {
+    background: var(--surface); border-radius: 16px; padding: 16px;
+    box-shadow: var(--shadow); border: 1.5px solid var(--border);
+    cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    transform: translateX(0);
+  }
+  .restaurant-card.swipe-left { transform: translateX(-70px); }
+  .restaurant-card-info { flex: 1; }
+  .restaurant-card-name { font-size: 16px; font-weight: 700; }
+  .restaurant-card-menus { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .restaurant-card-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .delete-btn-slide {
+    position: absolute; right: -70px; top: 0; height: 100%; width: 66px;
+    background: var(--danger); display: flex; align-items: center; justify-content: center;
+    border-radius: 0 14px 14px 0; cursor: pointer; color: #fff; font-size: 22px;
+    transition: right 0.2s;
+  }
+  .restaurant-card.swipe-left .delete-btn-slide { right: 0; }
+
+  .fab {
+    position: fixed; bottom: calc(var(--nav-h) + 16px); right: calc(50% - 215px + 16px);
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--primary); color: #fff; border: none; cursor: pointer;
+    font-size: 26px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(255,107,53,0.40);
+    transition: transform 0.12s;
+    z-index: 50;
+  }
+  .fab:active { transform: scale(0.92); }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .emoji { font-size: 56px; display: block; margin-bottom: 16px; }
+  .empty-state p { font-size: 15px; line-height: 1.6; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal-sheet {
+    background: var(--surface); border-radius: 24px 24px 0 0;
+    padding: 24px 20px 40px; width: 100%; max-width: 430px;
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-height: 90dvh; overflow-y: auto;
+  }
+  .modal-overlay.open .modal-sheet { transform: translateY(0); }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+  .modal-title { font-size: 18px; font-weight: 900; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-input {
+    width: 100%; padding: 13px 14px; border: 1.5px solid var(--border);
+    border-radius: 12px; font-family: inherit; font-size: 14px; color: var(--text);
+    background: var(--bg); outline: none; transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--primary); }
+  .menu-tag-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .menu-tag {
+    display: flex; align-items: center; gap: 4px;
+    background: #FFF0E8; color: var(--primary); border-radius: 12px;
+    padding: 5px 10px; font-size: 13px; font-weight: 600;
+  }
+  .menu-tag-del { cursor: pointer; font-size: 14px; opacity: 0.7; }
+  .menu-input-row { display: flex; gap: 8px; }
+  .menu-input-row .form-input { flex: 1; }
+  .cat-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .cat-option { padding: 8px 14px; border-radius: 10px; border: 1.5px solid var(--border); cursor: pointer; font-size: 13px; font-weight: 600; background: var(--surface); color: var(--muted); font-family: inherit; }
+  .cat-option.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .form-actions { display: flex; gap: 10px; margin-top: 24px; }
+
+  /* ── HISTORY ── */
+  .history-group { margin-bottom: 20px; }
+  .history-date-label { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 8px; padding: 0 2px; }
+  .history-item {
+    background: var(--surface); border-radius: 14px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: var(--shadow); margin-bottom: 8px; border: 1.5px solid var(--border);
+  }
+  .history-emoji { font-size: 28px; }
+  .history-info { flex: 1; }
+  .history-restaurant { font-size: 15px; font-weight: 700; }
+  .history-menu { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .history-del { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--muted); padding: 4px; }
+
+  /* ── SETTINGS ── */
+  .settings-section { background: var(--surface); border-radius: 16px; padding: 16px; margin-bottom: 16px; border: 1.5px solid var(--border); box-shadow: var(--shadow); }
+  .settings-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row-label { font-size: 14px; font-weight: 500; }
+  .stepper { display: flex; align-items: center; gap: 14px; }
+  .stepper-btn { width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; color: var(--primary); font-family: inherit; }
+  .stepper-val { font-size: 16px; font-weight: 700; min-width: 20px; text-align: center; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: calc(var(--nav-h) + 16px); left: 50%; transform: translateX(-50%) translateY(0);
+    background: var(--text); color: #fff; border-radius: 10px;
+    padding: 11px 20px; font-size: 14px; font-weight: 600;
+    z-index: 300; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+
+  /* ── MISC ── */
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 8px; background: #FFF0E8; color: var(--primary); }
+  .count-badge { background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; margin-left: 6px; }
+  .section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<!-- SCREENS -->
+<div id="screen-home" class="screen active">
+  <div class="home-greeting">
+    오늘도 고민되시죠?<br>
+    <strong>🍽️ 오늘 뭐 먹지?</strong>
+  </div>
+
+  <div class="category-filter" id="home-cat-filter">
+    <button class="chip active" data-cat="전체">전체</button>
+    <button class="chip" data-cat="한식">🍚 한식</button>
+    <button class="chip" data-cat="중식">🥟 중식</button>
+    <button class="chip" data-cat="일식">🍣 일식</button>
+    <button class="chip" data-cat="양식">🍝 양식</button>
+    <button class="chip" data-cat="분식">🍢 분식</button>
+    <button class="chip" data-cat="기타">🍴 기타</button>
+  </div>
+
+  <div class="roulette-wrap">
+    <button class="spin-btn" id="spin-btn" onclick="doSpin()">
+      <span class="spin-icon">🎰</span>
+      <span class="spin-label">눌러서 결정!</span>
+    </button>
+
+    <div class="result-card" id="result-card">
+      <div class="result-empty" id="result-empty">버튼을 눌러 오늘 메뉴를 뽑아보세요 😋</div>
+      <div id="result-content" style="display:none">
+        <div class="result-restaurant" id="result-name"></div>
+        <div class="result-menu" id="result-menu"></div>
+        <div class="result-cat-badge" id="result-cat"></div>
+        <div class="result-actions">
+          <button class="btn btn-primary btn-accent" onclick="eatIt()" id="eat-btn">✅ 먹었어요!</button>
+          <button class="btn btn-outline" onclick="doSpin()">🔄 다시</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="excluded-notice" id="excluded-notice" style="display:none">
+      ⏳ <span id="excluded-text"></span>
+    </div>
+  </div>
+</div>
+
+<div id="screen-list" class="screen">
+  <div class="page-header">
+    <div class="page-title">맛집 목록 <span class="count-badge" id="list-count">0</span></div>
+  </div>
+  <div class="search-bar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#9E9E9E" stroke-width="2" width="18"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input type="text" placeholder="식당 또는 메뉴 검색..." id="search-input" oninput="renderList()">
+  </div>
+  <div class="category-filter" id="list-cat-filter">
+    <button class="chip active" data-cat="전체">전체</button>
+    <button class="chip" data-cat="한식">🍚 한식</button>
+    <button class="chip" data-cat="중식">🥟 중식</button>
+    <button class="chip" data-cat="일식">🍣 일식</button>
+    <button class="chip" data-cat="양식">🍝 양식</button>
+    <button class="chip" data-cat="분식">🍢 분식</button>
+    <button class="chip" data-cat="기타">🍴 기타</button>
+  </div>
+  <div class="restaurant-list" id="restaurant-list"></div>
+  <button class="fab" onclick="openAddModal()">＋</button>
+</div>
+
+<div id="screen-history" class="screen">
+  <div class="page-header">
+    <div class="page-title">식사 이력</div>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<div id="screen-settings" class="screen">
+  <div class="page-header">
+    <div class="page-title">설정</div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-label">추천 설정</div>
+    <div class="settings-row">
+      <div class="settings-row-label">최근 며칠 내 메뉴 제외</div>
+      <div class="stepper">
+        <button class="stepper-btn" onclick="adjustExcludeDays(-1)">−</button>
+        <div class="stepper-val" id="exclude-days-val">3</div>
+        <button class="stepper-btn" onclick="adjustExcludeDays(1)">＋</button>
+      </div>
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-label">데이터 관리</div>
+    <div class="settings-row">
+      <div class="settings-row-label">맛집 데이터 내보내기</div>
+      <button class="btn btn-outline" onclick="exportData()" style="padding:8px 14px;font-size:13px;">내보내기</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label">식사 이력만 초기화</div>
+      <button class="btn btn-danger" onclick="clearHistory()" style="padding:8px 14px;font-size:13px;">초기화</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label">전체 데이터 초기화</div>
+      <button class="btn btn-danger" onclick="clearAll()" style="padding:8px 14px;font-size:13px;">전체 삭제</button>
+    </div>
+  </div>
+  <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">
+    오늘 뭐 먹지? v1.0<br>데이터는 이 기기에만 저장됩니다.
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" data-screen="home" onclick="goScreen('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="10" fill="currentColor" stroke="none">🎰</text></svg>
+    추천
+  </button>
+  <button class="nav-btn" data-screen="list" onclick="goScreen('list')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+    맛집
+  </button>
+  <button class="nav-btn" data-screen="history" onclick="goScreen('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    이력
+  </button>
+  <button class="nav-btn" data-screen="settings" onclick="goScreen('settings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    설정
+  </button>
+</nav>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal-sheet" id="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">맛집 등록</div>
+    <input type="hidden" id="edit-id">
+    <div class="form-group">
+      <label class="form-label">식당 이름 *</label>
+      <input class="form-input" id="f-name" placeholder="예: 홍콩반점">
+    </div>
+    <div class="form-group">
+      <label class="form-label">대표 메뉴 *</label>
+      <div class="menu-tag-wrap" id="menu-tags"></div>
+      <div class="menu-input-row" style="margin-top:8px;">
+        <input class="form-input" id="f-menu-input" placeholder="메뉴 입력 후 추가" onkeydown="menuInputKey(event)">
+        <button class="btn btn-outline" onclick="addMenuTag()" style="padding:0 14px;flex-shrink:0;">추가</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">카테고리</label>
+      <div class="cat-options" id="cat-options">
+        <button class="cat-option active" data-cat="한식">🍚 한식</button>
+        <button class="cat-option" data-cat="중식">🥟 중식</button>
+        <button class="cat-option" data-cat="일식">🍣 일식</button>
+        <button class="cat-option" data-cat="양식">🍝 양식</button>
+        <button class="cat-option" data-cat="분식">🍢 분식</button>
+        <button class="cat-option" data-cat="기타">🍴 기타</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모 (선택)</label>
+      <input class="form-input" id="f-memo" placeholder="예: 주차 가능, 웨이팅 있음">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()" style="flex:1;">취소</button>
+      <button class="btn btn-primary" onclick="saveRestaurant()" style="flex:2;">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+let DB = {
+  restaurants: [],
+  history: [],
+  settings: { excludeDays: 3 }
+};
+let selectedCatHome = '전체';
+let selectedCatList = '전체';
+let currentMenuTags = [];
+let selectedCatForm = '한식';
+let currentResult = null;
+let swipedCard = null;
+
+// ── PERSIST ──
+function save() { localStorage.setItem('mwmm_v1', JSON.stringify(DB)); }
+function load() {
+  try {
+    const raw = localStorage.getItem('mwmm_v1');
+    if (raw) DB = JSON.parse(raw);
+  } catch(e) {}
+}
+
+// ── NAV ──
+function goScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelector(`.nav-btn[data-screen="${name}"]`).classList.add('active');
+  if (name === 'list') renderList();
+  if (name === 'history') renderHistory();
+  if (name === 'settings') renderSettings();
+}
+
+// ── TOAST ──
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── CATEGORY FILTER ──
+function initFilters() {
+  document.getElementById('home-cat-filter').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#home-cat-filter .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedCatHome = chip.dataset.cat;
+  });
+  document.getElementById('list-cat-filter').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#list-cat-filter .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedCatList = chip.dataset.cat;
+    renderList();
+  });
+}
+
+// ── SPIN ──
+function getExcludedIds() {
+  const cutoff = Date.now() - DB.settings.excludeDays * 86400000;
+  return new Set(DB.history.filter(h => h.ts >= cutoff).map(h => h.rid));
+}
+
+function doSpin() {
+  let pool = DB.restaurants.filter(r => selectedCatHome === '전체' || r.cat === selectedCatHome);
+  const excludedIds = getExcludedIds();
+  const available = pool.filter(r => !excludedIds.has(r.id));
+  const pickFrom = available.length > 0 ? available : pool;
+
+  if (pickFrom.length === 0) {
+    toast('등록된 맛집이 없어요! 맛집을 먼저 추가해주세요 🍽️');
+    return;
+  }
+
+  const btn = document.getElementById('spin-btn');
+  btn.classList.remove('spinning');
+  void btn.offsetWidth;
+  btn.classList.add('spinning');
+
+  setTimeout(() => {
+    btn.classList.remove('spinning');
+    const pick = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+    currentResult = pick;
+    showResult(pick, available.length === 0);
+  }, 950);
+
+  // Show excluded notice
+  if (excludedIds.size > 0) {
+    document.getElementById('excluded-notice').style.display = 'flex';
+    document.getElementById('excluded-text').textContent =
+      `최근 ${DB.settings.excludeDays}일 내 먹은 ${excludedIds.size}곳은 제외됩니다`;
+  } else {
+    document.getElementById('excluded-notice').style.display = 'none';
+  }
+}
+
+function showResult(r, isFallback) {
+  document.getElementById('result-empty').style.display = 'none';
+  document.getElementById('result-content').style.display = 'block';
+  document.getElementById('result-name').textContent = r.name;
+  document.getElementById('result-menu').textContent = r.menus.join(', ');
+  document.getElementById('result-cat').textContent = r.cat;
+  const card = document.getElementById('result-card');
+  card.classList.add('revealed');
+
+  if (isFallback) {
+    document.getElementById('excluded-notice').style.display = 'flex';
+    document.getElementById('excluded-text').textContent = '제외 대상이 없어 전체에서 선택했어요';
+  }
+}
+
+function eatIt() {
+  if (!currentResult) return;
+  DB.history.unshift({ id: Date.now(), rid: currentResult.id, name: currentResult.name, menu: currentResult.menus.join(', '), ts: Date.now() });
+  save();
+  toast(`${currentResult.name} 기록 완료! 😋`);
+  document.getElementById('result-card').classList.remove('revealed');
+  document.getElementById('result-content').style.display = 'none';
+  document.getElementById('result-empty').style.display = 'block';
+  document.getElementById('result-empty').textContent = '맛있게 드셨나요? 🎉';
+  document.getElementById('excluded-notice').style.display = 'none';
+  currentResult = null;
+}
+
+// ── LIST ──
+function renderList() {
+  const q = (document.getElementById('search-input').value || '').toLowerCase();
+  const cat = selectedCatList;
+  let list = DB.restaurants.filter(r => {
+    const matchCat = cat === '전체' || r.cat === cat;
+    const matchQ = !q || r.name.toLowerCase().includes(q) || r.menus.some(m => m.toLowerCase().includes(q));
+    return matchCat && matchQ;
+  });
+
+  document.getElementById('list-count').textContent = DB.restaurants.length;
+  const el = document.getElementById('restaurant-list');
+
+  if (list.length === 0) {
+    el.innerHTML = `<div class="empty-state"><span class="emoji">🍴</span><p>등록된 맛집이 없어요.<br>아래 + 버튼으로 추가해보세요!</p></div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(r => `
+    <div class="restaurant-card" id="rc-${r.id}" data-id="${r.id}">
+      <div class="restaurant-card-info" onclick="openEditModal('${r.id}')">
+        <div class="restaurant-card-name">${r.name}</div>
+        <div class="restaurant-card-menus">${r.menus.join(' · ')}</div>
+        <div class="restaurant-card-meta">
+          <span class="badge">${r.cat}</span>
+          ${r.memo ? `<span style="font-size:12px;color:var(--muted);">${r.memo}</span>` : ''}
+        </div>
+      </div>
+      <button class="delete-btn-slide" onclick="deleteRestaurant('${r.id}')">🗑️</button>
+    </div>
+  `).join('');
+
+  // Swipe to delete
+  list.forEach(r => {
+    const card = document.getElementById('rc-' + r.id);
+    let startX = 0;
+    card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+    card.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx < -50) {
+        if (swipedCard && swipedCard !== card) swipedCard.classList.remove('swipe-left');
+        card.classList.add('swipe-left');
+        swipedCard = card;
+      } else if (dx > 20) {
+        card.classList.remove('swipe-left');
+      }
+    }, { passive: true });
+  });
+}
+
+function deleteRestaurant(id) {
+  if (!confirm('이 맛집을 삭제할까요?')) return;
+  DB.restaurants = DB.restaurants.filter(r => r.id !== id);
+  save(); renderList(); toast('삭제했어요.');
+}
+
+// ── MODAL ──
+function openAddModal() {
+  document.getElementById('modal-title').textContent = '맛집 등록';
+  document.getElementById('edit-id').value = '';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-memo').value = '';
+  currentMenuTags = [];
+  renderMenuTags();
+  setFormCat('한식');
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function openEditModal(id) {
+  const r = DB.restaurants.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('modal-title').textContent = '맛집 수정';
+  document.getElementById('edit-id').value = id;
+  document.getElementById('f-name').value = r.name;
+  document.getElementById('f-memo').value = r.memo || '';
+  currentMenuTags = [...r.menus];
+  renderMenuTags();
+  setFormCat(r.cat);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function addMenuTag() {
+  const inp = document.getElementById('f-menu-input');
+  const val = inp.value.trim();
+  if (!val) return;
+  if (!currentMenuTags.includes(val)) currentMenuTags.push(val);
+  inp.value = '';
+  renderMenuTags();
+}
+function menuInputKey(e) { if (e.key === 'Enter') addMenuTag(); }
+function removeMenuTag(idx) { currentMenuTags.splice(idx, 1); renderMenuTags(); }
+function renderMenuTags() {
+  document.getElementById('menu-tags').innerHTML = currentMenuTags.map((m, i) =>
+    `<span class="menu-tag">${m}<span class="menu-tag-del" onclick="removeMenuTag(${i})">×</span></span>`
+  ).join('');
+}
+
+function setFormCat(cat) {
+  selectedCatForm = cat;
+  document.querySelectorAll('.cat-option').forEach(b => {
+    b.classList.toggle('active', b.dataset.cat === cat);
+  });
+}
+document.getElementById('cat-options').addEventListener('click', e => {
+  const btn = e.target.closest('.cat-option');
+  if (!btn) return;
+  setFormCat(btn.dataset.cat);
+});
+
+function saveRestaurant() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { toast('식당 이름을 입력해주세요.'); return; }
+  if (currentMenuTags.length === 0) { toast('메뉴를 하나 이상 추가해주세요.'); return; }
+  const editId = document.getElementById('edit-id').value;
+  if (editId) {
+    const r = DB.restaurants.find(x => x.id === editId);
+    if (r) { r.name = name; r.menus = currentMenuTags; r.cat = selectedCatForm; r.memo = document.getElementById('f-memo').value.trim(); }
+    toast('수정했어요! ✅');
+  } else {
+    DB.restaurants.push({ id: Date.now().toString(), name, menus: currentMenuTags, cat: selectedCatForm, memo: document.getElementById('f-memo').value.trim() });
+    toast('맛집 등록 완료! 🎉');
+  }
+  save(); renderList();
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+// ── HISTORY ──
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (DB.history.length === 0) {
+    el.innerHTML = `<div class="empty-state"><span class="emoji">📅</span><p>아직 식사 기록이 없어요.<br>홈에서 메뉴를 뽑고 기록해보세요!</p></div>`;
+    return;
+  }
+  const catEmoji = { '한식':'🍚','중식':'🥟','일식':'🍣','양식':'🍝','분식':'🍢','기타':'🍴' };
+  const groups = {};
+  DB.history.forEach(h => {
+    const d = new Date(h.ts);
+    const key = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(h);
+  });
+  el.innerHTML = Object.entries(groups).map(([date, items]) => `
+    <div class="history-group">
+      <div class="history-date-label">📅 ${date}</div>
+      ${items.map(h => {
+        const r = DB.restaurants.find(x => x.id === h.rid);
+        const emoji = r ? (catEmoji[r.cat] || '🍴') : '🍴';
+        return `<div class="history-item">
+          <div class="history-emoji">${emoji}</div>
+          <div class="history-info">
+            <div class="history-restaurant">${h.name}</div>
+            <div class="history-menu">${h.menu}</div>
+          </div>
+          <button class="history-del" onclick="deleteHistory('${h.id}')">🗑️</button>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+}
+
+function deleteHistory(id) {
+  DB.history = DB.history.filter(h => h.id != id);
+  save(); renderHistory(); toast('기록을 삭제했어요.');
+}
+
+// ── SETTINGS ──
+function renderSettings() {
+  document.getElementById('exclude-days-val').textContent = DB.settings.excludeDays;
+}
+function adjustExcludeDays(d) {
+  DB.settings.excludeDays = Math.min(14, Math.max(1, DB.settings.excludeDays + d));
+  save(); renderSettings();
+}
+function clearHistory() {
+  if (!confirm('식사 이력을 모두 삭제할까요?')) return;
+  DB.history = []; save(); toast('이력을 초기화했어요.');
+}
+function clearAll() {
+  if (!confirm('모든 데이터를 삭제할까요? 복구할 수 없어요!')) return;
+  DB = { restaurants: [], history: [], settings: { excludeDays: 3 } };
+  save(); renderSettings(); toast('전체 초기화 완료.');
+}
+function exportData() {
+  const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mwmm_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+// ── INIT ──
+load();
+initFilters();
+renderList();
+renderHistory();
+renderSettings();
+</script>
+</body>
+</html>
