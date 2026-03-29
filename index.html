@@ -645,33 +645,12 @@ let selectedCatForm = '한식';
 let currentResult = null;
 let swipedCard = null;
 
-// ── SEED DATA ──
-const SEED_RESTAURANTS = [
-  { id: 's1',  name: '우직화',                  menus: ['육류', '고기요리'],  cat: '한식', memo: '', situations: ['추워', '비'] },
-  { id: 's2',  name: '오늘은즉떡 2호점',         menus: ['떡볶이'],            cat: '분식', memo: '', situations: ['비', '추워'] },
-  { id: 's3',  name: '정인면옥 본점',            menus: ['냉면'],              cat: '한식', memo: '', situations: ['더워', '맑음'] },
-  { id: 's4',  name: '짬뽕지존 여의도점',        menus: ['짬뽕'],              cat: '중식', memo: '', situations: ['비', '추워'] },
-  { id: 's5',  name: '오봉집 서여의도점',        menus: ['해물탕', '한식'],    cat: '한식', memo: '', situations: ['비', '추워'] },
-  { id: 's6',  name: '풍년닭도리탕 여의도점',    menus: ['닭볶음탕'],          cat: '한식', memo: '', situations: ['비', '추워'] },
-  { id: 's7',  name: '육전장 서여의도점',        menus: ['육전', '한식'],      cat: '한식', memo: '', situations: ['맑음'] },
-  { id: 's8',  name: '농농 여의도점',            menus: ['아시아음식'],        cat: '기타', memo: '', situations: ['맑음', '더워'] },
-  { id: 's9',  name: '타마',                    menus: ['일밥'],              cat: '일식', memo: '', situations: ['맑음'] },
-  { id: 's10', name: '농민백암순대',             menus: ['순대', '순댓국'],    cat: '한식', memo: '', situations: ['추워', '비'] },
-  { id: 's11', name: '소공동뚝배기집 여의도점',  menus: ['된장찌개', '한식'],  cat: '한식', memo: '', situations: ['추워', '비'] },
-  { id: 's12', name: '카페마마스 여의도점',      menus: ['카페', '브런치'],    cat: '기타', memo: '', situations: ['맑음', '더워'] },
-];
-
 // ── PERSIST ──
 function save() { localStorage.setItem('mwmm_v1', JSON.stringify(DB)); }
 function load() {
   try {
     const raw = localStorage.getItem('mwmm_v1');
-    if (raw) {
-      DB = JSON.parse(raw);
-    } else {
-      DB.restaurants = [...SEED_RESTAURANTS];
-      save();
-    }
+    if (raw) DB = JSON.parse(raw);
   } catch(e) {}
 }
 
