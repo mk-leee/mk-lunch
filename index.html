@@ -284,6 +284,36 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
 
+  /* ── PREFERENCE MODAL ── */
+  .pref-menu-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .pref-menu-row:last-child { border-bottom: none; }
+  .pref-menu-name { font-size: 15px; font-weight: 600; flex: 1; }
+  .pref-toggle { display: flex; gap: 6px; }
+  .pref-btn {
+    width: 42px; height: 42px; border-radius: 10px;
+    border: 1.5px solid var(--border); background: var(--bg);
+    cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .pref-btn.active-like    { background: #E8F5E9; border-color: #4CAF50; transform: scale(1.1); }
+  .pref-btn.active-neutral { background: #FFF8E1; border-color: #FFC107; transform: scale(1.1); }
+  .pref-btn.active-dislike { background: #FFEBEE; border-color: #EF5350; transform: scale(1.1); }
+  .pref-open-btn {
+    background: none; border: none; font-size: 16px; cursor: pointer;
+    padding: 4px 6px; flex-shrink: 0; opacity: 0.65; transition: opacity 0.15s;
+  }
+  .pref-open-btn:active { opacity: 1; }
+  .menu-pref-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    margin-left: 4px; vertical-align: middle; flex-shrink: 0;
+  }
+  .dot-like    { background: #4CAF50; }
+  .dot-dislike { background: #EF5350; }
+
   /* ── SEASON BANNER ── */
   .season-banner {
     display: flex; align-items: center; gap: 8px;
@@ -536,6 +566,19 @@
   </div>
 </div>
 
+<!-- PREFERENCE MODAL -->
+<div class="modal-overlay" id="pref-modal-overlay" onclick="closePrefModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="pref-modal-title">메뉴 선호도</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">자주 먹고 싶은 메뉴에는 👍, 별로면 👎를 눌러주세요.<br>선호 메뉴가 있는 식당이 더 자주 추천됩니다.</p>
+    <div id="pref-menu-list"></div>
+    <div class="form-actions" style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="closePrefModal()" style="flex:1;">완료</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -661,6 +704,66 @@ function initFilters() {
   });
 }
 
+// ── PREFERENCE ──
+let prefRestaurantId = null;
+
+function openPrefModal(id) {
+  prefRestaurantId = id;
+  const r = DB.restaurants.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('pref-modal-title').textContent = `${r.name} · 메뉴 선호도`;
+  renderPrefMenuList(r);
+  document.getElementById('pref-modal-overlay').classList.add('open');
+}
+
+function renderPrefMenuList(r) {
+  const prefs = r.menuPrefs || {};
+  document.getElementById('pref-menu-list').innerHTML = r.menus.map(m => {
+    const p = prefs[m] !== undefined ? prefs[m] : 0;
+    return `<div class="pref-menu-row">
+      <span class="pref-menu-name">${m}</span>
+      <div class="pref-toggle">
+        <button class="pref-btn ${p === 1 ? 'active-like' : ''}"    onclick="setPref('${r.id}','${m}',1)">👍</button>
+        <button class="pref-btn ${p === 0 ? 'active-neutral' : ''}" onclick="setPref('${r.id}','${m}',0)">😐</button>
+        <button class="pref-btn ${p === -1 ? 'active-dislike' : ''}" onclick="setPref('${r.id}','${m}',-1)">👎</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setPref(id, menu, pref) {
+  const r = DB.restaurants.find(x => x.id === id);
+  if (!r) return;
+  if (!r.menuPrefs) r.menuPrefs = {};
+  r.menuPrefs[menu] = pref;
+  save();
+  renderPrefMenuList(r);
+  renderList();
+}
+
+function closePrefModal(e) {
+  if (e && e.target !== document.getElementById('pref-modal-overlay')) return;
+  document.getElementById('pref-modal-overlay').classList.remove('open');
+}
+
+// 선호 메뉴 중 하나를 골라 반환 (👍 → 😐 → 전체 순으로 fallback)
+function pickPreferredMenu(r) {
+  const prefs = r.menuPrefs || {};
+  const liked   = r.menus.filter(m => prefs[m] === 1);
+  const neutral = r.menus.filter(m => (prefs[m] ?? 0) === 0);
+  const pool = liked.length ? liked : (neutral.length ? neutral : r.menus);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// 식당의 추천 가중치 (좋아하는 메뉴 많을수록 높게, 싫어하는 메뉴 많을수록 낮게)
+function getPrefWeight(r) {
+  const prefs = Object.values(r.menuPrefs || {});
+  if (!prefs.length) return 3;
+  const likes    = prefs.filter(p => p === 1).length;
+  const dislikes = prefs.filter(p => p === -1).length;
+  return Math.max(1, 3 + likes * 2 - dislikes * 2);
+}
+
 // ── SPIN ──
 function getExcludedIds() {
   const cutoff = Date.now() - DB.settings.excludeDays * 86400000;
@@ -685,23 +788,23 @@ const SITUATION_REASON = {
 function buildRecommendReason(r, usedSituation, isFallback) {
   const reasons = [];
 
+  // 선호도 기반
+  const prefs = r.menuPrefs || {};
+  const likedMenus = r.menus.filter(m => prefs[m] === 1);
+  if (likedMenus.length > 0) reasons.push(`좋아하는 메뉴(${likedMenus.join(', ')})가 있는 곳이에요`);
+
   // 상황 기반
   if (usedSituation !== '전체' && SITUATION_REASON[usedSituation]) {
     reasons.push(SITUATION_REASON[usedSituation]);
   }
 
-  // 계절 기반
-  reasons.push(getSeasonReason());
+  // 계절 기반 (선호도·상황 이유 없을 때)
+  if (reasons.length === 0) reasons.push(getSeasonReason());
 
   // 제외 안내
-  if (isFallback) {
-    reasons.push('최근 먹은 곳 제외 후 전체에서 골랐어요');
-  } else {
-    const excluded = getExcludedIds();
-    if (excluded.size > 0) reasons.push(`최근 ${DB.settings.excludeDays}일 내 방문한 ${excluded.size}곳은 빼고 추천했어요`);
-  }
+  if (isFallback) reasons.push('최근 먹은 곳 제외 후 전체에서 골랐어요');
 
-  return '💡 ' + reasons[0] + (reasons[1] ? ' · ' + reasons[1] : '');
+  return '💡 ' + reasons.slice(0, 2).join(' · ');
 }
 
 function doSpin() {
@@ -727,9 +830,11 @@ function doSpin() {
 
   setTimeout(() => {
     btn.classList.remove('spinning');
-    const pick = pickFrom[Math.floor(Math.random() * pickFrom.length)];
-    currentResult = pick;
-    showResult(pick, available.length === 0, selectedSituation);
+    // 선호도 가중치 적용 weighted random
+    const weightedPool = pickFrom.flatMap(r => Array(getPrefWeight(r)).fill(r));
+    const pick = weightedPool[Math.floor(Math.random() * weightedPool.length)];
+    currentResult = { ...pick, _suggestedMenu: pickPreferredMenu(pick) };
+    showResult(currentResult, available.length === 0, selectedSituation);
   }, 950);
 
   // Show excluded notice
@@ -746,7 +851,11 @@ function showResult(r, isFallback, usedSituation = '전체') {
   document.getElementById('result-empty').style.display = 'none';
   document.getElementById('result-content').style.display = 'block';
   document.getElementById('result-name').textContent = r.name;
-  document.getElementById('result-menu').textContent = r.menus.join(', ');
+  const suggestedMenu = r._suggestedMenu || r.menus[0];
+  const prefs = r.menuPrefs || {};
+  const prefLabel = prefs[suggestedMenu] === 1 ? ' 👍' : prefs[suggestedMenu] === -1 ? ' 👎' : '';
+  document.getElementById('result-menu').textContent = suggestedMenu + prefLabel
+    + (r.menus.length > 1 ? ` 외 ${r.menus.length - 1}개` : '');
   document.getElementById('result-cat').textContent = r.cat;
   document.getElementById('result-reason').textContent = buildRecommendReason(r, usedSituation, isFallback);
   const card = document.getElementById('result-card');
@@ -843,13 +952,19 @@ function renderList() {
     <div class="restaurant-card" id="rc-${r.id}" data-id="${r.id}">
       <div class="restaurant-card-info" onclick="openEditModal('${r.id}')">
         <div class="restaurant-card-name">${r.name}</div>
-        <div class="restaurant-card-menus">${r.menus.join(' · ')}</div>
+        <div class="restaurant-card-menus">${r.menus.map(m => {
+          const p = (r.menuPrefs||{})[m];
+          const dot = p === 1 ? '<span class="menu-pref-dot dot-like"></span>'
+                    : p === -1 ? '<span class="menu-pref-dot dot-dislike"></span>' : '';
+          return m + dot;
+        }).join(' · ')}</div>
         <div class="restaurant-card-meta">
           <span class="badge">${r.cat}</span>
           ${(r.situations||[]).map(s => `<span class="badge" style="background:#E8F5E9;color:#2E7D32;">${s}</span>`).join('')}
           ${r.memo ? `<span style="font-size:12px;color:var(--muted);">${r.memo}</span>` : ''}
         </div>
       </div>
+      <button class="pref-open-btn" onclick="event.stopPropagation();openPrefModal('${r.id}')">⭐</button>
       <button class="delete-btn-slide" onclick="deleteRestaurant('${r.id}')">🗑️</button>
     </div>
   `).join('');
