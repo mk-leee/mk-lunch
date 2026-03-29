@@ -71,6 +71,14 @@
     scrollbar-width: none;
   }
   .category-filter::-webkit-scrollbar { display: none; }
+  .category-filter.cat-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 5px; overflow-x: visible; padding: 6px 0;
+  }
+  .category-filter.cat-grid .chip {
+    padding: 7px 2px; font-size: 11px; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .chip {
     flex-shrink: 0; padding: 7px 16px; border-radius: 20px;
     font-size: 13px; font-weight: 500; cursor: pointer;
@@ -184,6 +192,7 @@
   .restaurant-card-name { font-size: 16px; font-weight: 700; }
   .restaurant-card-menus { font-size: 13px; color: var(--muted); margin-top: 3px; }
   .restaurant-card-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .restaurant-card-visit { font-size: 11px; color: var(--muted); margin-top: 5px; }
   .delete-btn-slide {
     position: absolute; right: -70px; top: 0; height: 100%; width: 66px;
     background: var(--danger); display: flex; align-items: center; justify-content: center;
@@ -314,6 +323,28 @@
   .dot-like    { background: #4CAF50; }
   .dot-dislike { background: #EF5350; }
 
+  /* ── MEAL TOGGLE ── */
+  .meal-toggle {
+    display: flex; gap: 0; margin: 8px 0 4px;
+    background: var(--border); border-radius: 14px; padding: 3px;
+  }
+  .meal-btn {
+    flex: 1; padding: 9px; border-radius: 11px; border: none;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: all 0.2s;
+    background: none; color: var(--muted);
+  }
+  .meal-btn.active {
+    background: var(--surface); color: var(--primary);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+  }
+  .meal-badge {
+    font-size: 11px; font-weight: 700; padding: 2px 7px;
+    border-radius: 8px; margin-right: 4px;
+  }
+  .meal-badge-lunch  { background: #FFF3E0; color: #E65100; }
+  .meal-badge-dinner { background: #EDE7F6; color: #4527A0; }
+
   /* ── SEASON BANNER ── */
   .season-banner {
     display: flex; align-items: center; gap: 8px;
@@ -350,29 +381,34 @@
 <div id="screen-home" class="screen active">
   <div class="home-greeting">
     오늘도 고민되시죠?<br>
-    <strong>🍽️ 오늘 뭐 먹지? <span id="home-version-display" style="font-size:12px;font-weight:500;color:var(--muted);vertical-align:middle;"></span></strong>
+    <strong id="home-greeting-text">🍽️ 오늘 점심 뭐 먹지? <span id="home-version-display" style="font-size:12px;font-weight:500;color:var(--muted);vertical-align:middle;"></span></strong>
+  </div>
+
+  <div class="meal-toggle">
+    <button class="meal-btn active" data-meal="점심" onclick="selectMeal('점심')">🌞 점심</button>
+    <button class="meal-btn" data-meal="저녁" onclick="selectMeal('저녁')">🌙 저녁</button>
   </div>
 
   <div id="season-banner" class="season-banner" style="display:none"></div>
 
   <div class="section-label">카테고리</div>
-  <div class="category-filter" id="home-cat-filter">
+  <div class="category-filter cat-grid" id="home-cat-filter">
     <button class="chip active" data-cat="전체">전체</button>
-    <button class="chip" data-cat="한식">🍚 한식</button>
-    <button class="chip" data-cat="중식">🥟 중식</button>
-    <button class="chip" data-cat="일식">🍣 일식</button>
-    <button class="chip" data-cat="양식">🍝 양식</button>
-    <button class="chip" data-cat="분식">🍢 분식</button>
-    <button class="chip" data-cat="기타">🍴 기타</button>
+    <button class="chip" data-cat="한식">🍚한식</button>
+    <button class="chip" data-cat="중식">🥟중식</button>
+    <button class="chip" data-cat="일식">🍣일식</button>
+    <button class="chip" data-cat="양식">🍝양식</button>
+    <button class="chip" data-cat="분식">🍢분식</button>
+    <button class="chip" data-cat="기타">🍴기타</button>
   </div>
 
-  <div class="section-label">오늘의 상황</div>
+  <div class="section-label">오늘의 날씨</div>
   <div class="category-filter" id="home-situation-filter">
     <button class="chip active" data-sit="전체">전체</button>
-    <button class="chip" data-sit="혼밥">🙋 혼밥</button>
-    <button class="chip" data-sit="회식">👥 회식</button>
-    <button class="chip" data-sit="빠르게">⚡ 빠르게</button>
-    <button class="chip" data-sit="건강식">🥗 건강식</button>
+    <button class="chip" data-sit="맑음">🌤 맑음</button>
+    <button class="chip" data-sit="비">🌧 비</button>
+    <button class="chip" data-sit="더워">🥵 더워</button>
+    <button class="chip" data-sit="추워">🥶 추워</button>
   </div>
 
   <div class="roulette-wrap">
@@ -409,14 +445,14 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="#9E9E9E" stroke-width="2" width="18"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
     <input type="text" placeholder="식당 또는 메뉴 검색..." id="search-input" oninput="renderList()">
   </div>
-  <div class="category-filter" id="list-cat-filter">
+  <div class="category-filter cat-grid" id="list-cat-filter">
     <button class="chip active" data-cat="전체">전체</button>
-    <button class="chip" data-cat="한식">🍚 한식</button>
-    <button class="chip" data-cat="중식">🥟 중식</button>
-    <button class="chip" data-cat="일식">🍣 일식</button>
-    <button class="chip" data-cat="양식">🍝 양식</button>
-    <button class="chip" data-cat="분식">🍢 분식</button>
-    <button class="chip" data-cat="기타">🍴 기타</button>
+    <button class="chip" data-cat="한식">🍚한식</button>
+    <button class="chip" data-cat="중식">🥟중식</button>
+    <button class="chip" data-cat="일식">🍣일식</button>
+    <button class="chip" data-cat="양식">🍝양식</button>
+    <button class="chip" data-cat="분식">🍢분식</button>
+    <button class="chip" data-cat="기타">🍴기타</button>
   </div>
   <div class="restaurant-list" id="restaurant-list"></div>
   <button class="fab" onclick="openAddModal()">＋</button>
@@ -517,10 +553,10 @@
     <div class="form-group">
       <label class="form-label">상황 태그 (복수 선택)</label>
       <div class="cat-options" id="sit-options">
-        <button class="cat-option" data-sit="혼밥">🙋 혼밥</button>
-        <button class="cat-option" data-sit="회식">👥 회식</button>
-        <button class="cat-option" data-sit="빠르게">⚡ 빠르게</button>
-        <button class="cat-option" data-sit="건강식">🥗 건강식</button>
+        <button class="cat-option" data-sit="맑음">🌤 맑음</button>
+        <button class="cat-option" data-sit="비">🌧 비</button>
+        <button class="cat-option" data-sit="더워">🥵 더워</button>
+        <button class="cat-option" data-sit="추워">🥶 추워</button>
       </div>
     </div>
     <div class="form-group">
@@ -550,6 +586,13 @@
     <div class="form-group">
       <label class="form-label">메뉴</label>
       <input class="form-input" id="hm-menu" placeholder="예: 냉면, 육전">
+    </div>
+    <div class="form-group">
+      <label class="form-label">식사 구분</label>
+      <div class="meal-toggle" style="margin:0;">
+        <button class="meal-btn active" data-hmmeal="점심" onclick="selectHistoryMeal('점심')">🌞 점심</button>
+        <button class="meal-btn" data-hmmeal="저녁" onclick="selectHistoryMeal('저녁')">🌙 저녁</button>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">날짜</label>
@@ -583,7 +626,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.2.9';
+const APP_VERSION = 'v1.2.12';
 
 // ── STATE ──
 let DB = {
@@ -594,6 +637,8 @@ let DB = {
 let selectedCatHome = '전체';
 let selectedCatList = '전체';
 let selectedSituation = '전체';
+let selectedMeal = new Date().getHours() < 14 ? '점심' : '저녁';
+let historyMeal = '점심';
 let currentMenuTags = [];
 let currentSitTags = [];
 let selectedCatForm = '한식';
@@ -602,18 +647,18 @@ let swipedCard = null;
 
 // ── SEED DATA ──
 const SEED_RESTAURANTS = [
-  { id: 's1',  name: '우직화',                  menus: ['육류', '고기요리'],  cat: '한식', memo: '', situations: ['회식'] },
-  { id: 's2',  name: '오늘은즉떡 2호점',         menus: ['떡볶이'],            cat: '분식', memo: '', situations: ['혼밥', '빠르게'] },
-  { id: 's3',  name: '정인면옥 본점',            menus: ['냉면'],              cat: '한식', memo: '', situations: ['혼밥', '건강식'] },
-  { id: 's4',  name: '짬뽕지존 여의도점',        menus: ['짬뽕'],              cat: '중식', memo: '', situations: ['회식', '빠르게'] },
-  { id: 's5',  name: '오봉집 서여의도점',        menus: ['해물탕', '한식'],    cat: '한식', memo: '', situations: ['회식'] },
-  { id: 's6',  name: '풍년닭도리탕 여의도점',    menus: ['닭볶음탕'],          cat: '한식', memo: '', situations: ['회식'] },
-  { id: 's7',  name: '육전장 서여의도점',        menus: ['육전', '한식'],      cat: '한식', memo: '', situations: ['회식'] },
-  { id: 's8',  name: '농농 여의도점',            menus: ['아시아음식'],        cat: '기타', memo: '', situations: ['혼밥'] },
-  { id: 's9',  name: '타마',                    menus: ['일밥'],              cat: '일식', memo: '', situations: ['혼밥', '건강식'] },
-  { id: 's10', name: '농민백암순대',             menus: ['순대', '순댓국'],    cat: '한식', memo: '', situations: ['혼밥', '빠르게'] },
-  { id: 's11', name: '소공동뚝배기집 여의도점',  menus: ['된장찌개', '한식'],  cat: '한식', memo: '', situations: ['혼밥', '건강식'] },
-  { id: 's12', name: '카페마마스 여의도점',      menus: ['카페', '브런치'],    cat: '기타', memo: '', situations: ['혼밥', '빠르게'] },
+  { id: 's1',  name: '우직화',                  menus: ['육류', '고기요리'],  cat: '한식', memo: '', situations: ['추워', '비'] },
+  { id: 's2',  name: '오늘은즉떡 2호점',         menus: ['떡볶이'],            cat: '분식', memo: '', situations: ['비', '추워'] },
+  { id: 's3',  name: '정인면옥 본점',            menus: ['냉면'],              cat: '한식', memo: '', situations: ['더워', '맑음'] },
+  { id: 's4',  name: '짬뽕지존 여의도점',        menus: ['짬뽕'],              cat: '중식', memo: '', situations: ['비', '추워'] },
+  { id: 's5',  name: '오봉집 서여의도점',        menus: ['해물탕', '한식'],    cat: '한식', memo: '', situations: ['비', '추워'] },
+  { id: 's6',  name: '풍년닭도리탕 여의도점',    menus: ['닭볶음탕'],          cat: '한식', memo: '', situations: ['비', '추워'] },
+  { id: 's7',  name: '육전장 서여의도점',        menus: ['육전', '한식'],      cat: '한식', memo: '', situations: ['맑음'] },
+  { id: 's8',  name: '농농 여의도점',            menus: ['아시아음식'],        cat: '기타', memo: '', situations: ['맑음', '더워'] },
+  { id: 's9',  name: '타마',                    menus: ['일밥'],              cat: '일식', memo: '', situations: ['맑음'] },
+  { id: 's10', name: '농민백암순대',             menus: ['순대', '순댓국'],    cat: '한식', memo: '', situations: ['추워', '비'] },
+  { id: 's11', name: '소공동뚝배기집 여의도점',  menus: ['된장찌개', '한식'],  cat: '한식', memo: '', situations: ['추워', '비'] },
+  { id: 's12', name: '카페마마스 여의도점',      menus: ['카페', '브런치'],    cat: '기타', memo: '', situations: ['맑음', '더워'] },
 ];
 
 // ── PERSIST ──
@@ -647,6 +692,24 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── MEAL ──
+function selectMeal(meal) {
+  selectedMeal = meal;
+  document.querySelectorAll('.meal-btn[data-meal]').forEach(b => {
+    b.classList.toggle('active', b.dataset.meal === meal);
+  });
+  const icon = meal === '점심' ? '🌞' : '🌙';
+  document.getElementById('home-greeting-text').innerHTML =
+    `🍽️ 오늘 ${icon} ${meal} 뭐 먹지? <span id="home-version-display" style="font-size:12px;font-weight:500;color:var(--muted);vertical-align:middle;">${APP_VERSION}</span>`;
+}
+
+function selectHistoryMeal(meal) {
+  historyMeal = meal;
+  document.querySelectorAll('.meal-btn[data-hmmeal]').forEach(b => {
+    b.classList.toggle('active', b.dataset.hmmeal === meal);
+  });
 }
 
 // ── SEASON ──
@@ -755,13 +818,61 @@ function pickPreferredMenu(r) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// 식당의 추천 가중치 (좋아하는 메뉴 많을수록 높게, 싫어하는 메뉴 많을수록 낮게)
-function getPrefWeight(r) {
-  const prefs = Object.values(r.menuPrefs || {});
-  if (!prefs.length) return 3;
-  const likes    = prefs.filter(p => p === 1).length;
-  const dislikes = prefs.filter(p => p === -1).length;
-  return Math.max(1, 3 + likes * 2 - dislikes * 2);
+// ── 기억 헬퍼 ──
+function getLastVisitDays(rid) {
+  const visits = DB.history.filter(h => h.rid === rid);
+  if (!visits.length) return null;
+  const latest = Math.max(...visits.map(h => h.ts));
+  return Math.floor((Date.now() - latest) / 86400000);
+}
+function getVisitCount(rid, days) {
+  const cutoff = Date.now() - days * 86400000;
+  return DB.history.filter(h => h.rid === rid && h.ts >= cutoff).length;
+}
+
+// ── 계절 키워드 보너스 ──
+function getSeasonMenuBonus(r) {
+  const m = new Date().getMonth() + 1;
+  const text = r.menus.join(' ');
+  const hit = (keywords) => keywords.some(k => text.includes(k));
+  if (m >= 6 && m <= 8)  return hit(['냉면','냉','회','육회','비빔','샐러드','아이스']) ? 3 : 0;
+  if (m <= 2 || m === 12) return hit(['국밥','순대','찌개','탕','전골','국','육류','고기']) ? 3 : 0;
+  if (m >= 3 && m <= 5)  return hit(['비빔','냉','샐러드','브런치']) ? 1 : 0;
+  if (m >= 9 && m <= 11) return hit(['탕','찌개','국','고기','구이']) ? 2 : 0;
+  return 0;
+}
+
+// ── 종합 스코어 브레이크다운 ──
+function computeScoreBreakdown(r) {
+  const bd = { base: 5, pref: 0, memory: 0, freq: 0, weather: 0, season: 0, total: 0 };
+
+  // 취향: 메뉴 선호도
+  const prefVals = Object.values(r.menuPrefs || {});
+  const likes    = prefVals.filter(p => p === 1).length;
+  const dislikes = prefVals.filter(p => p === -1).length;
+  bd.pref = likes * 4 - dislikes * 3;
+
+  // 기억: 방문 공백 보너스 (오랫동안 안 가면 추천 증가)
+  const lastDays = getLastVisitDays(r.id);
+  if (lastDays === null)    bd.memory = 3;   // 미방문 → 새로운 발견 장려
+  else if (lastDays > 21)  bd.memory = 4;   // 3주 이상 공백
+  else if (lastDays > 14)  bd.memory = 2;   // 2주 이상
+  else if (lastDays > 7)   bd.memory = 1;   // 1주 이상
+
+  // 기억: 최근 30일 방문 빈도 페널티 (너무 자주 가면 소폭 감점)
+  const freq30 = getVisitCount(r.id, 30);
+  bd.freq = -Math.min(freq30, 5);
+
+  // 상황: 날씨 매칭 보너스
+  if (selectedSituation !== '전체' && (r.situations || []).includes(selectedSituation)) {
+    bd.weather = 5;
+  }
+
+  // 계절: 메뉴 키워드 보너스
+  bd.season = getSeasonMenuBonus(r);
+
+  bd.total = Math.max(1, bd.base + bd.pref + bd.memory + bd.freq + bd.weather + bd.season);
+  return bd;
 }
 
 // ── SPIN ──
@@ -779,32 +890,39 @@ function getSeasonReason() {
 }
 
 const SITUATION_REASON = {
-  '혼밥':  '혼자 편하게 먹기 좋은 곳이에요',
-  '회식':  '여럿이 함께 즐기기 좋은 곳이에요',
-  '빠르게':'빠르게 해결하기 좋은 곳이에요',
-  '건강식':'오늘 건강하게 챙겨 먹을 수 있어요',
+  '맑음': '맑은 날씨에 기분 좋게 먹기 좋은 메뉴예요',
+  '비':   '비 오는 날 딱 어울리는 따뜻한 메뉴예요',
+  '더워': '더운 날 시원하게 먹기 좋은 메뉴예요',
+  '추워': '추운 날 몸을 녹여줄 메뉴예요',
 };
 
 function buildRecommendReason(r, usedSituation, isFallback) {
-  const reasons = [];
+  const bd = r._breakdown || {};
+  const parts = [];
 
-  // 선호도 기반
+  // 취향 기반
   const prefs = r.menuPrefs || {};
   const likedMenus = r.menus.filter(m => prefs[m] === 1);
-  if (likedMenus.length > 0) reasons.push(`좋아하는 메뉴(${likedMenus.join(', ')})가 있는 곳이에요`);
+  if (bd.pref > 0 && likedMenus.length) parts.push(`좋아하는 ${likedMenus[0]} 메뉴`);
 
-  // 상황 기반
-  if (usedSituation !== '전체' && SITUATION_REASON[usedSituation]) {
-    reasons.push(SITUATION_REASON[usedSituation]);
-  }
+  // 기억 기반
+  const lastDays = getLastVisitDays(r.id);
+  if (lastDays === null)   parts.push('아직 안 가본 곳');
+  else if (bd.memory >= 4) parts.push(`${lastDays}일 만에 다시 추천`);
+  else if (bd.memory >= 2) parts.push(`오랫동안 안 갔던 곳`);
 
-  // 계절 기반 (선호도·상황 이유 없을 때)
-  if (reasons.length === 0) reasons.push(getSeasonReason());
+  // 날씨·상황 기반
+  if (bd.weather > 0) parts.push(`오늘 ${usedSituation} 날씨에 딱`);
 
-  // 제외 안내
-  if (isFallback) reasons.push('최근 먹은 곳 제외 후 전체에서 골랐어요');
+  // 계절 기반
+  if (bd.season > 0) parts.push('이 계절에 잘 맞는 메뉴');
 
-  return '💡 ' + reasons.slice(0, 2).join(' · ');
+  // 아무 이유 없으면
+  if (!parts.length) parts.push(getSeasonReason());
+
+  if (isFallback) parts.push('전체에서 재선택');
+
+  return '💡 ' + parts.slice(0, 2).join(' · ');
 }
 
 function doSpin() {
@@ -830,10 +948,13 @@ function doSpin() {
 
   setTimeout(() => {
     btn.classList.remove('spinning');
-    // 선호도 가중치 적용 weighted random
-    const weightedPool = pickFrom.flatMap(r => Array(getPrefWeight(r)).fill(r));
-    const pick = weightedPool[Math.floor(Math.random() * weightedPool.length)];
-    currentResult = { ...pick, _suggestedMenu: pickPreferredMenu(pick) };
+    // 기억 + 취향 + 상황 종합 점수 기반 가중 랜덤
+    const scored = pickFrom.map(r => ({ r, bd: computeScoreBreakdown(r) }));
+    const total  = scored.reduce((s, x) => s + x.bd.total, 0);
+    let rand = Math.random() * total;
+    let chosen = scored[scored.length - 1];
+    for (const x of scored) { rand -= x.bd.total; if (rand <= 0) { chosen = x; break; } }
+    currentResult = { ...chosen.r, _suggestedMenu: pickPreferredMenu(chosen.r), _breakdown: chosen.bd };
     showResult(currentResult, available.length === 0, selectedSituation);
   }, 950);
 
@@ -882,6 +1003,8 @@ function openHistoryModal(mode, restaurant = null) {
   const today = new Date().toISOString().slice(0, 10);
   document.getElementById('hm-date').value = today;
   document.getElementById('hm-companion').value = '';
+  historyMeal = selectedMeal;
+  selectHistoryMeal(selectedMeal);
   if (mode === 'eat') {
     document.getElementById('history-modal-title').textContent = '식사 기록';
     document.getElementById('hm-restaurant-display-wrap').style.display = 'block';
@@ -909,7 +1032,7 @@ function saveHistoryEntry() {
   const menu = document.getElementById('hm-menu').value.trim();
   if (historyModalMode === 'eat') {
     const r = historyModalRestaurant;
-    DB.history.unshift({ id: Date.now(), rid: r.id, name: r.name, menu: menu || r.menus.join(', '), ts: Date.now(), date, companion });
+    DB.history.unshift({ id: Date.now(), rid: r.id, name: r.name, menu: menu || r.menus.join(', '), ts: Date.now(), date, companion, meal: historyMeal });
     save();
     toast(`${r.name} 기록 완료! 😋`);
     document.getElementById('result-card').classList.remove('revealed');
@@ -922,7 +1045,7 @@ function saveHistoryEntry() {
     const name = document.getElementById('hm-restaurant').value.trim();
     if (!name) { toast('식당 이름을 입력해주세요.'); return; }
     const existing = DB.restaurants.find(r => r.name === name);
-    DB.history.unshift({ id: Date.now(), rid: existing ? existing.id : null, name, menu: menu || '-', ts: Date.now(), date, companion });
+    DB.history.unshift({ id: Date.now(), rid: existing ? existing.id : null, name, menu: menu || '-', ts: Date.now(), date, companion, meal: historyMeal });
     save();
     renderHistory();
     toast('식사 기록 완료! 😋');
@@ -963,6 +1086,12 @@ function renderList() {
           ${(r.situations||[]).map(s => `<span class="badge" style="background:#E8F5E9;color:#2E7D32;">${s}</span>`).join('')}
           ${r.memo ? `<span style="font-size:12px;color:var(--muted);">${r.memo}</span>` : ''}
         </div>
+        ${(() => {
+          const total = DB.history.filter(h => h.rid === r.id).length;
+          const last  = getLastVisitDays(r.id);
+          if (total === 0) return `<div class="restaurant-card-visit">아직 미방문</div>`;
+          return `<div class="restaurant-card-visit">방문 ${total}회 · 마지막 ${last}일 전</div>`;
+        })()}
       </div>
       <button class="pref-open-btn" onclick="event.stopPropagation();openPrefModal('${r.id}')">⭐</button>
       <button class="delete-btn-slide" onclick="deleteRestaurant('${r.id}')">🗑️</button>
@@ -1104,10 +1233,13 @@ function renderHistory() {
       ${groups[dateKey].map(h => {
         const r = DB.restaurants.find(x => x.id === h.rid);
         const emoji = r ? (catEmoji[r.cat] || '🍴') : '🍴';
+        const mealBadge = h.meal === '저녁'
+          ? `<span class="meal-badge meal-badge-dinner">🌙 저녁</span>`
+          : `<span class="meal-badge meal-badge-lunch">🌞 점심</span>`;
         return `<div class="history-item">
           <div class="history-emoji">${emoji}</div>
           <div class="history-info">
-            <div class="history-restaurant">${h.name}</div>
+            <div class="history-restaurant">${mealBadge}${h.name}</div>
             <div class="history-menu">${h.menu}</div>
             ${h.companion ? `<div style="font-size:12px;color:var(--muted);margin-top:3px;">👥 ${h.companion}</div>` : ''}
           </div>
@@ -1153,6 +1285,7 @@ function exportData() {
 // ── INIT ──
 load();
 initFilters();
+selectMeal(selectedMeal);
 renderSeasonBanner();
 renderList();
 renderHistory();
