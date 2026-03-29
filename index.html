@@ -192,6 +192,7 @@
   .restaurant-card-name { font-size: 16px; font-weight: 700; }
   .restaurant-card-menus { font-size: 13px; color: var(--muted); margin-top: 3px; }
   .restaurant-card-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .restaurant-card-visit { font-size: 11px; color: var(--muted); margin-top: 5px; }
   .delete-btn-slide {
     position: absolute; right: -70px; top: 0; height: 100%; width: 66px;
     background: var(--danger); display: flex; align-items: center; justify-content: center;
@@ -817,13 +818,61 @@ function pickPreferredMenu(r) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// 식당의 추천 가중치 (좋아하는 메뉴 많을수록 높게, 싫어하는 메뉴 많을수록 낮게)
-function getPrefWeight(r) {
-  const prefs = Object.values(r.menuPrefs || {});
-  if (!prefs.length) return 3;
-  const likes    = prefs.filter(p => p === 1).length;
-  const dislikes = prefs.filter(p => p === -1).length;
-  return Math.max(1, 3 + likes * 2 - dislikes * 2);
+// ── 기억 헬퍼 ──
+function getLastVisitDays(rid) {
+  const visits = DB.history.filter(h => h.rid === rid);
+  if (!visits.length) return null;
+  const latest = Math.max(...visits.map(h => h.ts));
+  return Math.floor((Date.now() - latest) / 86400000);
+}
+function getVisitCount(rid, days) {
+  const cutoff = Date.now() - days * 86400000;
+  return DB.history.filter(h => h.rid === rid && h.ts >= cutoff).length;
+}
+
+// ── 계절 키워드 보너스 ──
+function getSeasonMenuBonus(r) {
+  const m = new Date().getMonth() + 1;
+  const text = r.menus.join(' ');
+  const hit = (keywords) => keywords.some(k => text.includes(k));
+  if (m >= 6 && m <= 8)  return hit(['냉면','냉','회','육회','비빔','샐러드','아이스']) ? 3 : 0;
+  if (m <= 2 || m === 12) return hit(['국밥','순대','찌개','탕','전골','국','육류','고기']) ? 3 : 0;
+  if (m >= 3 && m <= 5)  return hit(['비빔','냉','샐러드','브런치']) ? 1 : 0;
+  if (m >= 9 && m <= 11) return hit(['탕','찌개','국','고기','구이']) ? 2 : 0;
+  return 0;
+}
+
+// ── 종합 스코어 브레이크다운 ──
+function computeScoreBreakdown(r) {
+  const bd = { base: 5, pref: 0, memory: 0, freq: 0, weather: 0, season: 0, total: 0 };
+
+  // 취향: 메뉴 선호도
+  const prefVals = Object.values(r.menuPrefs || {});
+  const likes    = prefVals.filter(p => p === 1).length;
+  const dislikes = prefVals.filter(p => p === -1).length;
+  bd.pref = likes * 4 - dislikes * 3;
+
+  // 기억: 방문 공백 보너스 (오랫동안 안 가면 추천 증가)
+  const lastDays = getLastVisitDays(r.id);
+  if (lastDays === null)    bd.memory = 3;   // 미방문 → 새로운 발견 장려
+  else if (lastDays > 21)  bd.memory = 4;   // 3주 이상 공백
+  else if (lastDays > 14)  bd.memory = 2;   // 2주 이상
+  else if (lastDays > 7)   bd.memory = 1;   // 1주 이상
+
+  // 기억: 최근 30일 방문 빈도 페널티 (너무 자주 가면 소폭 감점)
+  const freq30 = getVisitCount(r.id, 30);
+  bd.freq = -Math.min(freq30, 5);
+
+  // 상황: 날씨 매칭 보너스
+  if (selectedSituation !== '전체' && (r.situations || []).includes(selectedSituation)) {
+    bd.weather = 5;
+  }
+
+  // 계절: 메뉴 키워드 보너스
+  bd.season = getSeasonMenuBonus(r);
+
+  bd.total = Math.max(1, bd.base + bd.pref + bd.memory + bd.freq + bd.weather + bd.season);
+  return bd;
 }
 
 // ── SPIN ──
@@ -848,25 +897,32 @@ const SITUATION_REASON = {
 };
 
 function buildRecommendReason(r, usedSituation, isFallback) {
-  const reasons = [];
+  const bd = r._breakdown || {};
+  const parts = [];
 
-  // 선호도 기반
+  // 취향 기반
   const prefs = r.menuPrefs || {};
   const likedMenus = r.menus.filter(m => prefs[m] === 1);
-  if (likedMenus.length > 0) reasons.push(`좋아하는 메뉴(${likedMenus.join(', ')})가 있는 곳이에요`);
+  if (bd.pref > 0 && likedMenus.length) parts.push(`좋아하는 ${likedMenus[0]} 메뉴`);
 
-  // 상황 기반
-  if (usedSituation !== '전체' && SITUATION_REASON[usedSituation]) {
-    reasons.push(SITUATION_REASON[usedSituation]);
-  }
+  // 기억 기반
+  const lastDays = getLastVisitDays(r.id);
+  if (lastDays === null)   parts.push('아직 안 가본 곳');
+  else if (bd.memory >= 4) parts.push(`${lastDays}일 만에 다시 추천`);
+  else if (bd.memory >= 2) parts.push(`오랫동안 안 갔던 곳`);
 
-  // 계절 기반 (선호도·상황 이유 없을 때)
-  if (reasons.length === 0) reasons.push(getSeasonReason());
+  // 날씨·상황 기반
+  if (bd.weather > 0) parts.push(`오늘 ${usedSituation} 날씨에 딱`);
 
-  // 제외 안내
-  if (isFallback) reasons.push('최근 먹은 곳 제외 후 전체에서 골랐어요');
+  // 계절 기반
+  if (bd.season > 0) parts.push('이 계절에 잘 맞는 메뉴');
 
-  return '💡 ' + reasons.slice(0, 2).join(' · ');
+  // 아무 이유 없으면
+  if (!parts.length) parts.push(getSeasonReason());
+
+  if (isFallback) parts.push('전체에서 재선택');
+
+  return '💡 ' + parts.slice(0, 2).join(' · ');
 }
 
 function doSpin() {
@@ -892,10 +948,13 @@ function doSpin() {
 
   setTimeout(() => {
     btn.classList.remove('spinning');
-    // 선호도 가중치 적용 weighted random
-    const weightedPool = pickFrom.flatMap(r => Array(getPrefWeight(r)).fill(r));
-    const pick = weightedPool[Math.floor(Math.random() * weightedPool.length)];
-    currentResult = { ...pick, _suggestedMenu: pickPreferredMenu(pick) };
+    // 기억 + 취향 + 상황 종합 점수 기반 가중 랜덤
+    const scored = pickFrom.map(r => ({ r, bd: computeScoreBreakdown(r) }));
+    const total  = scored.reduce((s, x) => s + x.bd.total, 0);
+    let rand = Math.random() * total;
+    let chosen = scored[scored.length - 1];
+    for (const x of scored) { rand -= x.bd.total; if (rand <= 0) { chosen = x; break; } }
+    currentResult = { ...chosen.r, _suggestedMenu: pickPreferredMenu(chosen.r), _breakdown: chosen.bd };
     showResult(currentResult, available.length === 0, selectedSituation);
   }, 950);
 
@@ -1027,6 +1086,12 @@ function renderList() {
           ${(r.situations||[]).map(s => `<span class="badge" style="background:#E8F5E9;color:#2E7D32;">${s}</span>`).join('')}
           ${r.memo ? `<span style="font-size:12px;color:var(--muted);">${r.memo}</span>` : ''}
         </div>
+        ${(() => {
+          const total = DB.history.filter(h => h.rid === r.id).length;
+          const last  = getLastVisitDays(r.id);
+          if (total === 0) return `<div class="restaurant-card-visit">아직 미방문</div>`;
+          return `<div class="restaurant-card-visit">방문 ${total}회 · 마지막 ${last}일 전</div>`;
+        })()}
       </div>
       <button class="pref-open-btn" onclick="event.stopPropagation();openPrefModal('${r.id}')">⭐</button>
       <button class="delete-btn-slide" onclick="deleteRestaurant('${r.id}')">🗑️</button>
