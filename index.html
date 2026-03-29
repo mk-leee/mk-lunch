@@ -71,6 +71,14 @@
     scrollbar-width: none;
   }
   .category-filter::-webkit-scrollbar { display: none; }
+  .category-filter.cat-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 5px; overflow-x: visible; padding: 6px 0;
+  }
+  .category-filter.cat-grid .chip {
+    padding: 7px 2px; font-size: 11px; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .chip {
     flex-shrink: 0; padding: 7px 16px; border-radius: 20px;
     font-size: 13px; font-weight: 500; cursor: pointer;
@@ -356,23 +364,23 @@
   <div id="season-banner" class="season-banner" style="display:none"></div>
 
   <div class="section-label">카테고리</div>
-  <div class="category-filter" id="home-cat-filter">
+  <div class="category-filter cat-grid" id="home-cat-filter">
     <button class="chip active" data-cat="전체">전체</button>
-    <button class="chip" data-cat="한식">🍚 한식</button>
-    <button class="chip" data-cat="중식">🥟 중식</button>
-    <button class="chip" data-cat="일식">🍣 일식</button>
-    <button class="chip" data-cat="양식">🍝 양식</button>
-    <button class="chip" data-cat="분식">🍢 분식</button>
-    <button class="chip" data-cat="기타">🍴 기타</button>
+    <button class="chip" data-cat="한식">🍚한식</button>
+    <button class="chip" data-cat="중식">🥟중식</button>
+    <button class="chip" data-cat="일식">🍣일식</button>
+    <button class="chip" data-cat="양식">🍝양식</button>
+    <button class="chip" data-cat="분식">🍢분식</button>
+    <button class="chip" data-cat="기타">🍴기타</button>
   </div>
 
-  <div class="section-label">오늘의 상황</div>
+  <div class="section-label">오늘의 날씨</div>
   <div class="category-filter" id="home-situation-filter">
     <button class="chip active" data-sit="전체">전체</button>
-    <button class="chip" data-sit="혼밥">🙋 혼밥</button>
-    <button class="chip" data-sit="회식">👥 회식</button>
-    <button class="chip" data-sit="빠르게">⚡ 빠르게</button>
-    <button class="chip" data-sit="건강식">🥗 건강식</button>
+    <button class="chip" data-sit="맑음">🌤 맑음</button>
+    <button class="chip" data-sit="비">🌧 비</button>
+    <button class="chip" data-sit="더워">🥵 더워</button>
+    <button class="chip" data-sit="추워">🥶 추워</button>
   </div>
 
   <div class="roulette-wrap">
@@ -409,14 +417,14 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="#9E9E9E" stroke-width="2" width="18"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
     <input type="text" placeholder="식당 또는 메뉴 검색..." id="search-input" oninput="renderList()">
   </div>
-  <div class="category-filter" id="list-cat-filter">
+  <div class="category-filter cat-grid" id="list-cat-filter">
     <button class="chip active" data-cat="전체">전체</button>
-    <button class="chip" data-cat="한식">🍚 한식</button>
-    <button class="chip" data-cat="중식">🥟 중식</button>
-    <button class="chip" data-cat="일식">🍣 일식</button>
-    <button class="chip" data-cat="양식">🍝 양식</button>
-    <button class="chip" data-cat="분식">🍢 분식</button>
-    <button class="chip" data-cat="기타">🍴 기타</button>
+    <button class="chip" data-cat="한식">🍚한식</button>
+    <button class="chip" data-cat="중식">🥟중식</button>
+    <button class="chip" data-cat="일식">🍣일식</button>
+    <button class="chip" data-cat="양식">🍝양식</button>
+    <button class="chip" data-cat="분식">🍢분식</button>
+    <button class="chip" data-cat="기타">🍴기타</button>
   </div>
   <div class="restaurant-list" id="restaurant-list"></div>
   <button class="fab" onclick="openAddModal()">＋</button>
@@ -517,10 +525,10 @@
     <div class="form-group">
       <label class="form-label">상황 태그 (복수 선택)</label>
       <div class="cat-options" id="sit-options">
-        <button class="cat-option" data-sit="혼밥">🙋 혼밥</button>
-        <button class="cat-option" data-sit="회식">👥 회식</button>
-        <button class="cat-option" data-sit="빠르게">⚡ 빠르게</button>
-        <button class="cat-option" data-sit="건강식">🥗 건강식</button>
+        <button class="cat-option" data-sit="맑음">🌤 맑음</button>
+        <button class="cat-option" data-sit="비">🌧 비</button>
+        <button class="cat-option" data-sit="더워">🥵 더워</button>
+        <button class="cat-option" data-sit="추워">🥶 추워</button>
       </div>
     </div>
     <div class="form-group">
@@ -602,18 +610,18 @@ let swipedCard = null;
 
 // ── SEED DATA ──
 const SEED_RESTAURANTS = [
-  { id: 's1',  name: '우직화',                  menus: ['육류', '고기요리'],  cat: '한식', memo: '', situations: ['회식'] },
-  { id: 's2',  name: '오늘은즉떡 2호점',         menus: ['떡볶이'],            cat: '분식', memo: '', situations: ['혼밥', '빠르게'] },
-  { id: 's3',  name: '정인면옥 본점',            menus: ['냉면'],              cat: '한식', memo: '', situations: ['혼밥', '건강식'] },
-  { id: 's4',  name: '짬뽕지존 여의도점',        menus: ['짬뽕'],              cat: '중식', memo: '', situations: ['회식', '빠르게'] },
-  { id: 's5',  name: '오봉집 서여의도점',        menus: ['해물탕', '한식'],    cat: '한식', memo: '', situations: ['회식'] },
-  { id: 's6',  name: '풍년닭도리탕 여의도점',    menus: ['닭볶음탕'],          cat: '한식', memo: '', situations: ['회식'] },
-  { id: 's7',  name: '육전장 서여의도점',        menus: ['육전', '한식'],      cat: '한식', memo: '', situations: ['회식'] },
-  { id: 's8',  name: '농농 여의도점',            menus: ['아시아음식'],        cat: '기타', memo: '', situations: ['혼밥'] },
-  { id: 's9',  name: '타마',                    menus: ['일밥'],              cat: '일식', memo: '', situations: ['혼밥', '건강식'] },
-  { id: 's10', name: '농민백암순대',             menus: ['순대', '순댓국'],    cat: '한식', memo: '', situations: ['혼밥', '빠르게'] },
-  { id: 's11', name: '소공동뚝배기집 여의도점',  menus: ['된장찌개', '한식'],  cat: '한식', memo: '', situations: ['혼밥', '건강식'] },
-  { id: 's12', name: '카페마마스 여의도점',      menus: ['카페', '브런치'],    cat: '기타', memo: '', situations: ['혼밥', '빠르게'] },
+  { id: 's1',  name: '우직화',                  menus: ['육류', '고기요리'],  cat: '한식', memo: '', situations: ['추워', '비'] },
+  { id: 's2',  name: '오늘은즉떡 2호점',         menus: ['떡볶이'],            cat: '분식', memo: '', situations: ['비', '추워'] },
+  { id: 's3',  name: '정인면옥 본점',            menus: ['냉면'],              cat: '한식', memo: '', situations: ['더워', '맑음'] },
+  { id: 's4',  name: '짬뽕지존 여의도점',        menus: ['짬뽕'],              cat: '중식', memo: '', situations: ['비', '추워'] },
+  { id: 's5',  name: '오봉집 서여의도점',        menus: ['해물탕', '한식'],    cat: '한식', memo: '', situations: ['비', '추워'] },
+  { id: 's6',  name: '풍년닭도리탕 여의도점',    menus: ['닭볶음탕'],          cat: '한식', memo: '', situations: ['비', '추워'] },
+  { id: 's7',  name: '육전장 서여의도점',        menus: ['육전', '한식'],      cat: '한식', memo: '', situations: ['맑음'] },
+  { id: 's8',  name: '농농 여의도점',            menus: ['아시아음식'],        cat: '기타', memo: '', situations: ['맑음', '더워'] },
+  { id: 's9',  name: '타마',                    menus: ['일밥'],              cat: '일식', memo: '', situations: ['맑음'] },
+  { id: 's10', name: '농민백암순대',             menus: ['순대', '순댓국'],    cat: '한식', memo: '', situations: ['추워', '비'] },
+  { id: 's11', name: '소공동뚝배기집 여의도점',  menus: ['된장찌개', '한식'],  cat: '한식', memo: '', situations: ['추워', '비'] },
+  { id: 's12', name: '카페마마스 여의도점',      menus: ['카페', '브런치'],    cat: '기타', memo: '', situations: ['맑음', '더워'] },
 ];
 
 // ── PERSIST ──
@@ -779,10 +787,10 @@ function getSeasonReason() {
 }
 
 const SITUATION_REASON = {
-  '혼밥':  '혼자 편하게 먹기 좋은 곳이에요',
-  '회식':  '여럿이 함께 즐기기 좋은 곳이에요',
-  '빠르게':'빠르게 해결하기 좋은 곳이에요',
-  '건강식':'오늘 건강하게 챙겨 먹을 수 있어요',
+  '맑음': '맑은 날씨에 기분 좋게 먹기 좋은 메뉴예요',
+  '비':   '비 오는 날 딱 어울리는 따뜻한 메뉴예요',
+  '더워': '더운 날 시원하게 먹기 좋은 메뉴예요',
+  '추워': '추운 날 몸을 녹여줄 메뉴예요',
 };
 
 function buildRecommendReason(r, usedSituation, isFallback) {
