@@ -360,6 +360,7 @@
     <div class="page-title">식사 이력</div>
   </div>
   <div id="history-list"></div>
+  <button class="fab" onclick="openHistoryModal('manual')">＋</button>
 </div>
 
 <div id="screen-settings" class="screen">
@@ -393,7 +394,7 @@
     </div>
   </div>
   <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">
-    오늘 뭐 먹지? v1.0<br>데이터는 이 기기에만 저장됩니다.
+    오늘 뭐 먹지? <span id="app-version-display"></span><br>데이터는 이 기기에만 저장됩니다.
   </div>
 </div>
 
@@ -457,10 +458,44 @@
   </div>
 </div>
 
+<!-- HISTORY ENTRY MODAL -->
+<div class="modal-overlay" id="history-modal-overlay" onclick="closeHistoryModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="history-modal-title">식사 기록</div>
+    <div class="form-group" id="hm-restaurant-display-wrap">
+      <label class="form-label">식당</label>
+      <div id="hm-restaurant-display" style="font-size:16px;font-weight:700;padding:8px 0;color:var(--text);"></div>
+    </div>
+    <div class="form-group" id="hm-restaurant-input-wrap">
+      <label class="form-label">식당 이름 *</label>
+      <input class="form-input" id="hm-restaurant" placeholder="예: 정인면옥 본점">
+    </div>
+    <div class="form-group">
+      <label class="form-label">메뉴</label>
+      <input class="form-input" id="hm-menu" placeholder="예: 냉면, 육전">
+    </div>
+    <div class="form-group">
+      <label class="form-label">날짜</label>
+      <input class="form-input" id="hm-date" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">같이 먹은 사람 (선택)</label>
+      <input class="form-input" id="hm-companion" placeholder="예: 팀원들, 홍길동">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeHistoryModal()" style="flex:1;">취소</button>
+      <button class="btn btn-primary" onclick="saveHistoryEntry()" style="flex:2;">저장하기</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script>
+const APP_VERSION = 'v1.2.6';
+
 // ── STATE ──
 let DB = {
   restaurants: [],
@@ -598,15 +633,65 @@ function showResult(r, isFallback) {
 
 function eatIt() {
   if (!currentResult) return;
-  DB.history.unshift({ id: Date.now(), rid: currentResult.id, name: currentResult.name, menu: currentResult.menus.join(', '), ts: Date.now() });
-  save();
-  toast(`${currentResult.name} 기록 완료! 😋`);
-  document.getElementById('result-card').classList.remove('revealed');
-  document.getElementById('result-content').style.display = 'none';
-  document.getElementById('result-empty').style.display = 'block';
-  document.getElementById('result-empty').textContent = '맛있게 드셨나요? 🎉';
-  document.getElementById('excluded-notice').style.display = 'none';
-  currentResult = null;
+  openHistoryModal('eat', currentResult);
+}
+
+// ── HISTORY MODAL ──
+let historyModalMode = null;
+let historyModalRestaurant = null;
+
+function openHistoryModal(mode, restaurant = null) {
+  historyModalMode = mode;
+  historyModalRestaurant = restaurant;
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('hm-date').value = today;
+  document.getElementById('hm-companion').value = '';
+  if (mode === 'eat') {
+    document.getElementById('history-modal-title').textContent = '식사 기록';
+    document.getElementById('hm-restaurant-display-wrap').style.display = 'block';
+    document.getElementById('hm-restaurant-display').textContent = restaurant.name;
+    document.getElementById('hm-restaurant-input-wrap').style.display = 'none';
+    document.getElementById('hm-menu').value = restaurant.menus.join(', ');
+  } else {
+    document.getElementById('history-modal-title').textContent = '식사 기록 추가';
+    document.getElementById('hm-restaurant-display-wrap').style.display = 'none';
+    document.getElementById('hm-restaurant-input-wrap').style.display = 'block';
+    document.getElementById('hm-restaurant').value = '';
+    document.getElementById('hm-menu').value = '';
+  }
+  document.getElementById('history-modal-overlay').classList.add('open');
+}
+
+function closeHistoryModal(e) {
+  if (e && e.target !== document.getElementById('history-modal-overlay')) return;
+  document.getElementById('history-modal-overlay').classList.remove('open');
+}
+
+function saveHistoryEntry() {
+  const date = document.getElementById('hm-date').value;
+  const companion = document.getElementById('hm-companion').value.trim();
+  const menu = document.getElementById('hm-menu').value.trim();
+  if (historyModalMode === 'eat') {
+    const r = historyModalRestaurant;
+    DB.history.unshift({ id: Date.now(), rid: r.id, name: r.name, menu: menu || r.menus.join(', '), ts: Date.now(), date, companion });
+    save();
+    toast(`${r.name} 기록 완료! 😋`);
+    document.getElementById('result-card').classList.remove('revealed');
+    document.getElementById('result-content').style.display = 'none';
+    document.getElementById('result-empty').style.display = 'block';
+    document.getElementById('result-empty').textContent = '맛있게 드셨나요? 🎉';
+    document.getElementById('excluded-notice').style.display = 'none';
+    currentResult = null;
+  } else {
+    const name = document.getElementById('hm-restaurant').value.trim();
+    if (!name) { toast('식당 이름을 입력해주세요.'); return; }
+    const existing = DB.restaurants.find(r => r.name === name);
+    DB.history.unshift({ id: Date.now(), rid: existing ? existing.id : null, name, menu: menu || '-', ts: Date.now(), date, companion });
+    save();
+    renderHistory();
+    toast('식사 기록 완료! 😋');
+  }
+  document.getElementById('history-modal-overlay').classList.remove('open');
 }
 
 // ── LIST ──
@@ -744,21 +829,24 @@ function saveRestaurant() {
 function renderHistory() {
   const el = document.getElementById('history-list');
   if (DB.history.length === 0) {
-    el.innerHTML = `<div class="empty-state"><span class="emoji">📅</span><p>아직 식사 기록이 없어요.<br>홈에서 메뉴를 뽑고 기록해보세요!</p></div>`;
+    el.innerHTML = `<div class="empty-state"><span class="emoji">📅</span><p>아직 식사 기록이 없어요.<br>홈에서 메뉴를 뽑거나 + 버튼으로 추가해보세요!</p></div>`;
     return;
   }
   const catEmoji = { '한식':'🍚','중식':'🥟','일식':'🍣','양식':'🍝','분식':'🍢','기타':'🍴' };
   const groups = {};
   DB.history.forEach(h => {
-    const d = new Date(h.ts);
-    const key = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+    const key = h.date || (() => { const d = new Date(h.ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
     if (!groups[key]) groups[key] = [];
     groups[key].push(h);
   });
-  el.innerHTML = Object.entries(groups).map(([date, items]) => `
+  const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+  el.innerHTML = sortedKeys.map(dateKey => {
+    const [y, m, d] = dateKey.split('-');
+    const label = `${y}년 ${Number(m)}월 ${Number(d)}일`;
+    return `
     <div class="history-group">
-      <div class="history-date-label">📅 ${date}</div>
-      ${items.map(h => {
+      <div class="history-date-label">📅 ${label}</div>
+      ${groups[dateKey].map(h => {
         const r = DB.restaurants.find(x => x.id === h.rid);
         const emoji = r ? (catEmoji[r.cat] || '🍴') : '🍴';
         return `<div class="history-item">
@@ -766,12 +854,13 @@ function renderHistory() {
           <div class="history-info">
             <div class="history-restaurant">${h.name}</div>
             <div class="history-menu">${h.menu}</div>
+            ${h.companion ? `<div style="font-size:12px;color:var(--muted);margin-top:3px;">👥 ${h.companion}</div>` : ''}
           </div>
           <button class="history-del" onclick="deleteHistory('${h.id}')">🗑️</button>
         </div>`;
       }).join('')}
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function deleteHistory(id) {
@@ -782,6 +871,7 @@ function deleteHistory(id) {
 // ── SETTINGS ──
 function renderSettings() {
   document.getElementById('exclude-days-val').textContent = DB.settings.excludeDays;
+  document.getElementById('app-version-display').textContent = APP_VERSION;
 }
 function adjustExcludeDays(d) {
   DB.settings.excludeDays = Math.min(14, Math.max(1, DB.settings.excludeDays + d));
