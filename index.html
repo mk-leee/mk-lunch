@@ -284,6 +284,60 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
 
+  /* ── PREFERENCE MODAL ── */
+  .pref-menu-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .pref-menu-row:last-child { border-bottom: none; }
+  .pref-menu-name { font-size: 15px; font-weight: 600; flex: 1; }
+  .pref-toggle { display: flex; gap: 6px; }
+  .pref-btn {
+    width: 42px; height: 42px; border-radius: 10px;
+    border: 1.5px solid var(--border); background: var(--bg);
+    cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .pref-btn.active-like    { background: #E8F5E9; border-color: #4CAF50; transform: scale(1.1); }
+  .pref-btn.active-neutral { background: #FFF8E1; border-color: #FFC107; transform: scale(1.1); }
+  .pref-btn.active-dislike { background: #FFEBEE; border-color: #EF5350; transform: scale(1.1); }
+  .pref-open-btn {
+    background: none; border: none; font-size: 16px; cursor: pointer;
+    padding: 4px 6px; flex-shrink: 0; opacity: 0.65; transition: opacity 0.15s;
+  }
+  .pref-open-btn:active { opacity: 1; }
+  .menu-pref-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    margin-left: 4px; vertical-align: middle; flex-shrink: 0;
+  }
+  .dot-like    { background: #4CAF50; }
+  .dot-dislike { background: #EF5350; }
+
+  /* ── SEASON BANNER ── */
+  .season-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 12px; margin-bottom: 4px;
+    font-size: 13px; font-weight: 500;
+  }
+  .season-banner.spring { background: #FFF0F5; color: #C2185B; }
+  .season-banner.summer { background: #E3F2FD; color: #1565C0; }
+  .season-banner.autumn { background: #FFF3E0; color: #E65100; }
+  .season-banner.winter { background: #EDE7F6; color: #4527A0; }
+
+  /* ── SITUATION CHIPS ── */
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 10px 0 4px;
+  }
+
+  /* ── RESULT REASON ── */
+  .result-reason {
+    font-size: 12px; color: var(--muted); margin-top: 6px;
+    display: flex; align-items: center; gap: 4px;
+  }
+
   /* ── MISC ── */
   .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 8px; background: #FFF0E8; color: var(--primary); }
   .count-badge { background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; margin-left: 6px; }
@@ -296,9 +350,12 @@
 <div id="screen-home" class="screen active">
   <div class="home-greeting">
     오늘도 고민되시죠?<br>
-    <strong>🍽️ 오늘 뭐 먹지?</strong>
+    <strong>🍽️ 오늘 뭐 먹지? <span id="home-version-display" style="font-size:12px;font-weight:500;color:var(--muted);vertical-align:middle;"></span></strong>
   </div>
 
+  <div id="season-banner" class="season-banner" style="display:none"></div>
+
+  <div class="section-label">카테고리</div>
   <div class="category-filter" id="home-cat-filter">
     <button class="chip active" data-cat="전체">전체</button>
     <button class="chip" data-cat="한식">🍚 한식</button>
@@ -307,6 +364,15 @@
     <button class="chip" data-cat="양식">🍝 양식</button>
     <button class="chip" data-cat="분식">🍢 분식</button>
     <button class="chip" data-cat="기타">🍴 기타</button>
+  </div>
+
+  <div class="section-label">오늘의 상황</div>
+  <div class="category-filter" id="home-situation-filter">
+    <button class="chip active" data-sit="전체">전체</button>
+    <button class="chip" data-sit="혼밥">🙋 혼밥</button>
+    <button class="chip" data-sit="회식">👥 회식</button>
+    <button class="chip" data-sit="빠르게">⚡ 빠르게</button>
+    <button class="chip" data-sit="건강식">🥗 건강식</button>
   </div>
 
   <div class="roulette-wrap">
@@ -321,6 +387,7 @@
         <div class="result-restaurant" id="result-name"></div>
         <div class="result-menu" id="result-menu"></div>
         <div class="result-cat-badge" id="result-cat"></div>
+        <div class="result-reason" id="result-reason"></div>
         <div class="result-actions">
           <button class="btn btn-primary btn-accent" onclick="eatIt()" id="eat-btn">✅ 먹었어요!</button>
           <button class="btn btn-outline" onclick="doSpin()">🔄 다시</button>
@@ -448,6 +515,15 @@
       </div>
     </div>
     <div class="form-group">
+      <label class="form-label">상황 태그 (복수 선택)</label>
+      <div class="cat-options" id="sit-options">
+        <button class="cat-option" data-sit="혼밥">🙋 혼밥</button>
+        <button class="cat-option" data-sit="회식">👥 회식</button>
+        <button class="cat-option" data-sit="빠르게">⚡ 빠르게</button>
+        <button class="cat-option" data-sit="건강식">🥗 건강식</button>
+      </div>
+    </div>
+    <div class="form-group">
       <label class="form-label">메모 (선택)</label>
       <input class="form-input" id="f-memo" placeholder="예: 주차 가능, 웨이팅 있음">
     </div>
@@ -490,11 +566,24 @@
   </div>
 </div>
 
+<!-- PREFERENCE MODAL -->
+<div class="modal-overlay" id="pref-modal-overlay" onclick="closePrefModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="pref-modal-title">메뉴 선호도</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">자주 먹고 싶은 메뉴에는 👍, 별로면 👎를 눌러주세요.<br>선호 메뉴가 있는 식당이 더 자주 추천됩니다.</p>
+    <div id="pref-menu-list"></div>
+    <div class="form-actions" style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="closePrefModal()" style="flex:1;">완료</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.2.6';
+const APP_VERSION = 'v1.2.9';
 
 // ── STATE ──
 let DB = {
@@ -504,25 +593,27 @@ let DB = {
 };
 let selectedCatHome = '전체';
 let selectedCatList = '전체';
+let selectedSituation = '전체';
 let currentMenuTags = [];
+let currentSitTags = [];
 let selectedCatForm = '한식';
 let currentResult = null;
 let swipedCard = null;
 
 // ── SEED DATA ──
 const SEED_RESTAURANTS = [
-  { id: 's1', name: '우직화', menus: ['육류', '고기요리'], cat: '한식', memo: '' },
-  { id: 's2', name: '오늘은즉떡 2호점', menus: ['떡볶이'], cat: '분식', memo: '' },
-  { id: 's3', name: '정인면옥 본점', menus: ['냉면'], cat: '한식', memo: '' },
-  { id: 's4', name: '짬뽕지존 여의도점', menus: ['짬뽕'], cat: '중식', memo: '' },
-  { id: 's5', name: '오봉집 서여의도점', menus: ['해물탕', '한식'], cat: '한식', memo: '' },
-  { id: 's6', name: '풍년닭도리탕 여의도점', menus: ['닭볶음탕'], cat: '한식', memo: '' },
-  { id: 's7', name: '육전장 서여의도점', menus: ['육전', '한식'], cat: '한식', memo: '' },
-  { id: 's8', name: '농농 여의도점', menus: ['아시아음식'], cat: '기타', memo: '' },
-  { id: 's9', name: '타마', menus: ['일밥'], cat: '일식', memo: '' },
-  { id: 's10', name: '농민백암순대', menus: ['순대', '순댓국'], cat: '한식', memo: '' },
-  { id: 's11', name: '소공동뚝배기집 여의도점', menus: ['된장찌개', '한식'], cat: '한식', memo: '' },
-  { id: 's12', name: '카페마마스 여의도점', menus: ['카페', '브런치'], cat: '기타', memo: '' },
+  { id: 's1',  name: '우직화',                  menus: ['육류', '고기요리'],  cat: '한식', memo: '', situations: ['회식'] },
+  { id: 's2',  name: '오늘은즉떡 2호점',         menus: ['떡볶이'],            cat: '분식', memo: '', situations: ['혼밥', '빠르게'] },
+  { id: 's3',  name: '정인면옥 본점',            menus: ['냉면'],              cat: '한식', memo: '', situations: ['혼밥', '건강식'] },
+  { id: 's4',  name: '짬뽕지존 여의도점',        menus: ['짬뽕'],              cat: '중식', memo: '', situations: ['회식', '빠르게'] },
+  { id: 's5',  name: '오봉집 서여의도점',        menus: ['해물탕', '한식'],    cat: '한식', memo: '', situations: ['회식'] },
+  { id: 's6',  name: '풍년닭도리탕 여의도점',    menus: ['닭볶음탕'],          cat: '한식', memo: '', situations: ['회식'] },
+  { id: 's7',  name: '육전장 서여의도점',        menus: ['육전', '한식'],      cat: '한식', memo: '', situations: ['회식'] },
+  { id: 's8',  name: '농농 여의도점',            menus: ['아시아음식'],        cat: '기타', memo: '', situations: ['혼밥'] },
+  { id: 's9',  name: '타마',                    menus: ['일밥'],              cat: '일식', memo: '', situations: ['혼밥', '건강식'] },
+  { id: 's10', name: '농민백암순대',             menus: ['순대', '순댓국'],    cat: '한식', memo: '', situations: ['혼밥', '빠르게'] },
+  { id: 's11', name: '소공동뚝배기집 여의도점',  menus: ['된장찌개', '한식'],  cat: '한식', memo: '', situations: ['혼밥', '건강식'] },
+  { id: 's12', name: '카페마마스 여의도점',      menus: ['카페', '브런치'],    cat: '기타', memo: '', situations: ['혼밥', '빠르게'] },
 ];
 
 // ── PERSIST ──
@@ -558,6 +649,23 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2000);
 }
 
+// ── SEASON ──
+function getSeasonInfo() {
+  const m = new Date().getMonth() + 1;
+  if (m >= 3 && m <= 5)  return { cls: 'spring', text: '🌸 봄엔 가볍게! 냉면·비빔밥 어때요?' };
+  if (m >= 6 && m <= 8)  return { cls: 'summer', text: '☀️ 더운 날엔 시원한 냉면이나 육회 어때요?' };
+  if (m >= 9 && m <= 11) return { cls: 'autumn', text: '🍂 선선한 가을엔 따뜻한 국물 요리 어때요?' };
+  return { cls: 'winter', text: '❄️ 추운 날엔 뜨끈한 순대국밥 한 그릇 어때요?' };
+}
+
+function renderSeasonBanner() {
+  const el = document.getElementById('season-banner');
+  const { cls, text } = getSeasonInfo();
+  el.className = `season-banner ${cls}`;
+  el.textContent = text;
+  el.style.display = 'flex';
+}
+
 // ── CATEGORY FILTER ──
 function initFilters() {
   document.getElementById('home-cat-filter').addEventListener('click', e => {
@@ -567,6 +675,13 @@ function initFilters() {
     chip.classList.add('active');
     selectedCatHome = chip.dataset.cat;
   });
+  document.getElementById('home-situation-filter').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#home-situation-filter .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedSituation = chip.dataset.sit;
+  });
   document.getElementById('list-cat-filter').addEventListener('click', e => {
     const chip = e.target.closest('.chip');
     if (!chip) return;
@@ -575,6 +690,78 @@ function initFilters() {
     selectedCatList = chip.dataset.cat;
     renderList();
   });
+  document.getElementById('sit-options').addEventListener('click', e => {
+    const btn = e.target.closest('.cat-option');
+    if (!btn) return;
+    const sit = btn.dataset.sit;
+    if (currentSitTags.includes(sit)) {
+      currentSitTags = currentSitTags.filter(s => s !== sit);
+      btn.classList.remove('active');
+    } else {
+      currentSitTags.push(sit);
+      btn.classList.add('active');
+    }
+  });
+}
+
+// ── PREFERENCE ──
+let prefRestaurantId = null;
+
+function openPrefModal(id) {
+  prefRestaurantId = id;
+  const r = DB.restaurants.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('pref-modal-title').textContent = `${r.name} · 메뉴 선호도`;
+  renderPrefMenuList(r);
+  document.getElementById('pref-modal-overlay').classList.add('open');
+}
+
+function renderPrefMenuList(r) {
+  const prefs = r.menuPrefs || {};
+  document.getElementById('pref-menu-list').innerHTML = r.menus.map(m => {
+    const p = prefs[m] !== undefined ? prefs[m] : 0;
+    return `<div class="pref-menu-row">
+      <span class="pref-menu-name">${m}</span>
+      <div class="pref-toggle">
+        <button class="pref-btn ${p === 1 ? 'active-like' : ''}"    onclick="setPref('${r.id}','${m}',1)">👍</button>
+        <button class="pref-btn ${p === 0 ? 'active-neutral' : ''}" onclick="setPref('${r.id}','${m}',0)">😐</button>
+        <button class="pref-btn ${p === -1 ? 'active-dislike' : ''}" onclick="setPref('${r.id}','${m}',-1)">👎</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setPref(id, menu, pref) {
+  const r = DB.restaurants.find(x => x.id === id);
+  if (!r) return;
+  if (!r.menuPrefs) r.menuPrefs = {};
+  r.menuPrefs[menu] = pref;
+  save();
+  renderPrefMenuList(r);
+  renderList();
+}
+
+function closePrefModal(e) {
+  if (e && e.target !== document.getElementById('pref-modal-overlay')) return;
+  document.getElementById('pref-modal-overlay').classList.remove('open');
+}
+
+// 선호 메뉴 중 하나를 골라 반환 (👍 → 😐 → 전체 순으로 fallback)
+function pickPreferredMenu(r) {
+  const prefs = r.menuPrefs || {};
+  const liked   = r.menus.filter(m => prefs[m] === 1);
+  const neutral = r.menus.filter(m => (prefs[m] ?? 0) === 0);
+  const pool = liked.length ? liked : (neutral.length ? neutral : r.menus);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// 식당의 추천 가중치 (좋아하는 메뉴 많을수록 높게, 싫어하는 메뉴 많을수록 낮게)
+function getPrefWeight(r) {
+  const prefs = Object.values(r.menuPrefs || {});
+  if (!prefs.length) return 3;
+  const likes    = prefs.filter(p => p === 1).length;
+  const dislikes = prefs.filter(p => p === -1).length;
+  return Math.max(1, 3 + likes * 2 - dislikes * 2);
 }
 
 // ── SPIN ──
@@ -583,8 +770,50 @@ function getExcludedIds() {
   return new Set(DB.history.filter(h => h.ts >= cutoff).map(h => h.rid));
 }
 
+function getSeasonReason() {
+  const m = new Date().getMonth() + 1;
+  if (m >= 3 && m <= 5)  return '봄 날씨에 가볍게 먹기 좋은 메뉴예요';
+  if (m >= 6 && m <= 8)  return '더운 날씨에 잘 맞는 메뉴예요';
+  if (m >= 9 && m <= 11) return '선선한 날씨에 잘 어울리는 메뉴예요';
+  return '추운 날씨에 몸을 녹여줄 메뉴예요';
+}
+
+const SITUATION_REASON = {
+  '혼밥':  '혼자 편하게 먹기 좋은 곳이에요',
+  '회식':  '여럿이 함께 즐기기 좋은 곳이에요',
+  '빠르게':'빠르게 해결하기 좋은 곳이에요',
+  '건강식':'오늘 건강하게 챙겨 먹을 수 있어요',
+};
+
+function buildRecommendReason(r, usedSituation, isFallback) {
+  const reasons = [];
+
+  // 선호도 기반
+  const prefs = r.menuPrefs || {};
+  const likedMenus = r.menus.filter(m => prefs[m] === 1);
+  if (likedMenus.length > 0) reasons.push(`좋아하는 메뉴(${likedMenus.join(', ')})가 있는 곳이에요`);
+
+  // 상황 기반
+  if (usedSituation !== '전체' && SITUATION_REASON[usedSituation]) {
+    reasons.push(SITUATION_REASON[usedSituation]);
+  }
+
+  // 계절 기반 (선호도·상황 이유 없을 때)
+  if (reasons.length === 0) reasons.push(getSeasonReason());
+
+  // 제외 안내
+  if (isFallback) reasons.push('최근 먹은 곳 제외 후 전체에서 골랐어요');
+
+  return '💡 ' + reasons.slice(0, 2).join(' · ');
+}
+
 function doSpin() {
   let pool = DB.restaurants.filter(r => selectedCatHome === '전체' || r.cat === selectedCatHome);
+  // 상황 필터: 해당 상황 태그가 있는 식당 우선, 없으면 전체로 fallback
+  if (selectedSituation !== '전체') {
+    const situated = pool.filter(r => (r.situations || []).includes(selectedSituation));
+    if (situated.length > 0) pool = situated;
+  }
   const excludedIds = getExcludedIds();
   const available = pool.filter(r => !excludedIds.has(r.id));
   const pickFrom = available.length > 0 ? available : pool;
@@ -601,9 +830,11 @@ function doSpin() {
 
   setTimeout(() => {
     btn.classList.remove('spinning');
-    const pick = pickFrom[Math.floor(Math.random() * pickFrom.length)];
-    currentResult = pick;
-    showResult(pick, available.length === 0);
+    // 선호도 가중치 적용 weighted random
+    const weightedPool = pickFrom.flatMap(r => Array(getPrefWeight(r)).fill(r));
+    const pick = weightedPool[Math.floor(Math.random() * weightedPool.length)];
+    currentResult = { ...pick, _suggestedMenu: pickPreferredMenu(pick) };
+    showResult(currentResult, available.length === 0, selectedSituation);
   }, 950);
 
   // Show excluded notice
@@ -616,12 +847,17 @@ function doSpin() {
   }
 }
 
-function showResult(r, isFallback) {
+function showResult(r, isFallback, usedSituation = '전체') {
   document.getElementById('result-empty').style.display = 'none';
   document.getElementById('result-content').style.display = 'block';
   document.getElementById('result-name').textContent = r.name;
-  document.getElementById('result-menu').textContent = r.menus.join(', ');
+  const suggestedMenu = r._suggestedMenu || r.menus[0];
+  const prefs = r.menuPrefs || {};
+  const prefLabel = prefs[suggestedMenu] === 1 ? ' 👍' : prefs[suggestedMenu] === -1 ? ' 👎' : '';
+  document.getElementById('result-menu').textContent = suggestedMenu + prefLabel
+    + (r.menus.length > 1 ? ` 외 ${r.menus.length - 1}개` : '');
   document.getElementById('result-cat').textContent = r.cat;
+  document.getElementById('result-reason').textContent = buildRecommendReason(r, usedSituation, isFallback);
   const card = document.getElementById('result-card');
   card.classList.add('revealed');
 
@@ -716,12 +952,19 @@ function renderList() {
     <div class="restaurant-card" id="rc-${r.id}" data-id="${r.id}">
       <div class="restaurant-card-info" onclick="openEditModal('${r.id}')">
         <div class="restaurant-card-name">${r.name}</div>
-        <div class="restaurant-card-menus">${r.menus.join(' · ')}</div>
+        <div class="restaurant-card-menus">${r.menus.map(m => {
+          const p = (r.menuPrefs||{})[m];
+          const dot = p === 1 ? '<span class="menu-pref-dot dot-like"></span>'
+                    : p === -1 ? '<span class="menu-pref-dot dot-dislike"></span>' : '';
+          return m + dot;
+        }).join(' · ')}</div>
         <div class="restaurant-card-meta">
           <span class="badge">${r.cat}</span>
+          ${(r.situations||[]).map(s => `<span class="badge" style="background:#E8F5E9;color:#2E7D32;">${s}</span>`).join('')}
           ${r.memo ? `<span style="font-size:12px;color:var(--muted);">${r.memo}</span>` : ''}
         </div>
       </div>
+      <button class="pref-open-btn" onclick="event.stopPropagation();openPrefModal('${r.id}')">⭐</button>
       <button class="delete-btn-slide" onclick="deleteRestaurant('${r.id}')">🗑️</button>
     </div>
   `).join('');
@@ -751,13 +994,22 @@ function deleteRestaurant(id) {
 }
 
 // ── MODAL ──
+function renderSitTags() {
+  currentSitTags.forEach(s => {
+    const btn = document.querySelector(`#sit-options [data-sit="${s}"]`);
+    if (btn) btn.classList.add('active');
+  });
+}
+
 function openAddModal() {
   document.getElementById('modal-title').textContent = '맛집 등록';
   document.getElementById('edit-id').value = '';
   document.getElementById('f-name').value = '';
   document.getElementById('f-memo').value = '';
   currentMenuTags = [];
+  currentSitTags = [];
   renderMenuTags();
+  document.querySelectorAll('#sit-options .cat-option').forEach(b => b.classList.remove('active'));
   setFormCat('한식');
   document.getElementById('modal-overlay').classList.add('open');
 }
@@ -770,7 +1022,10 @@ function openEditModal(id) {
   document.getElementById('f-name').value = r.name;
   document.getElementById('f-memo').value = r.memo || '';
   currentMenuTags = [...r.menus];
+  currentSitTags = [...(r.situations || [])];
   renderMenuTags();
+  document.querySelectorAll('#sit-options .cat-option').forEach(b => b.classList.remove('active'));
+  renderSitTags();
   setFormCat(r.cat);
   document.getElementById('modal-overlay').classList.add('open');
 }
@@ -815,10 +1070,10 @@ function saveRestaurant() {
   const editId = document.getElementById('edit-id').value;
   if (editId) {
     const r = DB.restaurants.find(x => x.id === editId);
-    if (r) { r.name = name; r.menus = currentMenuTags; r.cat = selectedCatForm; r.memo = document.getElementById('f-memo').value.trim(); }
+    if (r) { r.name = name; r.menus = currentMenuTags; r.cat = selectedCatForm; r.memo = document.getElementById('f-memo').value.trim(); r.situations = [...currentSitTags]; }
     toast('수정했어요! ✅');
   } else {
-    DB.restaurants.push({ id: Date.now().toString(), name, menus: currentMenuTags, cat: selectedCatForm, memo: document.getElementById('f-memo').value.trim() });
+    DB.restaurants.push({ id: Date.now().toString(), name, menus: currentMenuTags, cat: selectedCatForm, memo: document.getElementById('f-memo').value.trim(), situations: [...currentSitTags] });
     toast('맛집 등록 완료! 🎉');
   }
   save(); renderList();
@@ -872,6 +1127,7 @@ function deleteHistory(id) {
 function renderSettings() {
   document.getElementById('exclude-days-val').textContent = DB.settings.excludeDays;
   document.getElementById('app-version-display').textContent = APP_VERSION;
+  document.getElementById('home-version-display').textContent = APP_VERSION;
 }
 function adjustExcludeDays(d) {
   DB.settings.excludeDays = Math.min(14, Math.max(1, DB.settings.excludeDays + d));
@@ -897,6 +1153,7 @@ function exportData() {
 // ── INIT ──
 load();
 initFilters();
+renderSeasonBanner();
 renderList();
 renderHistory();
 renderSettings();
