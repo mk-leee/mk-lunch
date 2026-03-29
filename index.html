@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>오늘 뭐 먹지?</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --primary: #FF6B35;
@@ -192,7 +193,28 @@
   .restaurant-card-name { font-size: 16px; font-weight: 700; }
   .restaurant-card-menus { font-size: 13px; color: var(--muted); margin-top: 3px; }
   .restaurant-card-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-  .restaurant-card-visit { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .restaurant-card-visit   { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .restaurant-card-address { font-size: 11px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+  .restaurant-link-btn {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 700; color: var(--primary);
+    background: #FFF0E8; border: none; border-radius: 8px;
+    padding: 3px 8px; cursor: pointer; font-family: inherit;
+    text-decoration: none; margin-top: 4px;
+  }
+  .group-room-badge {
+    font-size: 11px; font-weight: 700; padding: 2px 7px;
+    border-radius: 8px; background: #E3F2FD; color: #1565C0;
+  }
+  .import-btn {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 13px 16px; border-radius: 12px;
+    border: 1.5px dashed var(--primary); background: #FFF8F3;
+    color: var(--primary); font-size: 14px; font-weight: 700;
+    cursor: pointer; font-family: inherit; justify-content: center;
+    transition: background 0.15s;
+  }
+  .import-btn:active { background: #FFE8D6; }
   .delete-btn-slide {
     position: absolute; right: -70px; top: 0; height: 100%; width: 66px;
     background: var(--danger); display: flex; align-items: center; justify-content: center;
@@ -482,6 +504,17 @@
     </div>
   </div>
   <div class="settings-section">
+    <div class="settings-label">맛집 불러오기</div>
+    <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(event)">
+    <button class="import-btn" onclick="document.getElementById('excel-file-input').click()">
+      📂 엑셀 파일 업로드 (.xlsx / .csv)
+    </button>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;">
+      헤더: 종류 · 장소명 · 메인메뉴 · 주소 · 단체룸/공간보유 · 비고 · 링크
+    </p>
+  </div>
+
+  <div class="settings-section">
     <div class="settings-label">데이터 관리</div>
     <div class="settings-row">
       <div class="settings-row-label">맛집 데이터 내보내기</div>
@@ -560,7 +593,22 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">메모 (선택)</label>
+      <label class="form-label">주소 (선택)</label>
+      <input class="form-input" id="f-address" placeholder="예: 서울 영등포구 여의도동 10">
+    </div>
+    <div class="form-group">
+      <label class="form-label">단체룸 / 공간</label>
+      <div class="cat-options" id="group-room-options">
+        <button class="cat-option" data-gr="없음">없음</button>
+        <button class="cat-option" data-gr="있음">🏠 있음</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">링크 (선택)</label>
+      <input class="form-input" id="f-link" placeholder="예: https://naver.me/..." type="url">
+    </div>
+    <div class="form-group">
+      <label class="form-label">비고 (선택)</label>
       <input class="form-input" id="f-memo" placeholder="예: 주차 가능, 웨이팅 있음">
     </div>
     <div class="form-actions">
@@ -642,6 +690,7 @@ let historyMeal = '점심';
 let currentMenuTags = [];
 let currentSitTags = [];
 let selectedCatForm = '한식';
+let selectedGroupRoom = '없음';
 let currentResult = null;
 let swipedCard = null;
 
@@ -743,6 +792,14 @@ function initFilters() {
       currentSitTags.push(sit);
       btn.classList.add('active');
     }
+  });
+  document.getElementById('group-room-options').addEventListener('click', e => {
+    const btn = e.target.closest('.cat-option');
+    if (!btn) return;
+    selectedGroupRoom = btn.dataset.gr;
+    document.querySelectorAll('#group-room-options .cat-option').forEach(b => {
+      b.classList.toggle('active', b.dataset.gr === selectedGroupRoom);
+    });
   });
 }
 
@@ -1063,8 +1120,11 @@ function renderList() {
         <div class="restaurant-card-meta">
           <span class="badge">${r.cat}</span>
           ${(r.situations||[]).map(s => `<span class="badge" style="background:#E8F5E9;color:#2E7D32;">${s}</span>`).join('')}
+          ${r.groupRoom === '있음' ? `<span class="group-room-badge">🏠 단체룸</span>` : ''}
           ${r.memo ? `<span style="font-size:12px;color:var(--muted);">${r.memo}</span>` : ''}
         </div>
+        ${r.address ? `<div class="restaurant-card-address">📍 ${r.address}</div>` : ''}
+        ${r.link ? `<a class="restaurant-link-btn" href="${r.link}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">🔗 링크</a>` : ''}
         ${(() => {
           const total = DB.history.filter(h => h.rid === r.id).length;
           const last  = getLastVisitDays(r.id);
@@ -1109,16 +1169,26 @@ function renderSitTags() {
   });
 }
 
+function setFormGroupRoom(gr) {
+  selectedGroupRoom = gr || '없음';
+  document.querySelectorAll('#group-room-options .cat-option').forEach(b => {
+    b.classList.toggle('active', b.dataset.gr === selectedGroupRoom);
+  });
+}
+
 function openAddModal() {
   document.getElementById('modal-title').textContent = '맛집 등록';
   document.getElementById('edit-id').value = '';
   document.getElementById('f-name').value = '';
   document.getElementById('f-memo').value = '';
+  document.getElementById('f-address').value = '';
+  document.getElementById('f-link').value = '';
   currentMenuTags = [];
   currentSitTags = [];
   renderMenuTags();
   document.querySelectorAll('#sit-options .cat-option').forEach(b => b.classList.remove('active'));
   setFormCat('한식');
+  setFormGroupRoom('없음');
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -1129,12 +1199,15 @@ function openEditModal(id) {
   document.getElementById('edit-id').value = id;
   document.getElementById('f-name').value = r.name;
   document.getElementById('f-memo').value = r.memo || '';
+  document.getElementById('f-address').value = r.address || '';
+  document.getElementById('f-link').value = r.link || '';
   currentMenuTags = [...r.menus];
   currentSitTags = [...(r.situations || [])];
   renderMenuTags();
   document.querySelectorAll('#sit-options .cat-option').forEach(b => b.classList.remove('active'));
   renderSitTags();
   setFormCat(r.cat);
+  setFormGroupRoom(r.groupRoom || '없음');
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -1176,12 +1249,15 @@ function saveRestaurant() {
   if (!name) { toast('식당 이름을 입력해주세요.'); return; }
   if (currentMenuTags.length === 0) { toast('메뉴를 하나 이상 추가해주세요.'); return; }
   const editId = document.getElementById('edit-id').value;
+  const address = document.getElementById('f-address').value.trim();
+  const link = document.getElementById('f-link').value.trim();
+  const memo = document.getElementById('f-memo').value.trim();
   if (editId) {
     const r = DB.restaurants.find(x => x.id === editId);
-    if (r) { r.name = name; r.menus = currentMenuTags; r.cat = selectedCatForm; r.memo = document.getElementById('f-memo').value.trim(); r.situations = [...currentSitTags]; }
+    if (r) { r.name = name; r.menus = currentMenuTags; r.cat = selectedCatForm; r.memo = memo; r.situations = [...currentSitTags]; r.address = address; r.groupRoom = selectedGroupRoom; r.link = link; }
     toast('수정했어요! ✅');
   } else {
-    DB.restaurants.push({ id: Date.now().toString(), name, menus: currentMenuTags, cat: selectedCatForm, memo: document.getElementById('f-memo').value.trim(), situations: [...currentSitTags] });
+    DB.restaurants.push({ id: Date.now().toString(), name, menus: currentMenuTags, cat: selectedCatForm, memo, situations: [...currentSitTags], address, groupRoom: selectedGroupRoom, link });
     toast('맛집 등록 완료! 🎉');
   }
   save(); renderList();
@@ -1259,6 +1335,59 @@ function exportData() {
   a.href = URL.createObjectURL(blob);
   a.download = `mwmm_backup_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
+}
+
+// ── EXCEL IMPORT ──
+function handleExcelUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = ''; // reset input so same file can be re-uploaded
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (rows.length === 0) { toast('파일에 데이터가 없어요.'); return; }
+
+      const CAT_MAP = { '한식':'한식','중식':'중식','일식':'일식','양식':'양식','분식':'분식','기타':'기타' };
+      const SIT_MAP = { '맑음':'맑음','비':'비','더워':'더워','추워':'추워' };
+      const parsed = rows.map(row => {
+        const cat = CAT_MAP[String(row['종류']||'').trim()] || '기타';
+        const name = String(row['장소명']||'').trim();
+        const menusRaw = String(row['메인메뉴']||'').trim();
+        const menus = menusRaw ? menusRaw.split(/[,，\/\n]/).map(m => m.trim()).filter(Boolean) : ['메뉴 미정'];
+        const address = String(row['주소']||'').trim();
+        const grRaw = String(row['단체룸/공간보유']||'').trim();
+        const groupRoom = grRaw === '있음' || grRaw === 'Y' || grRaw === 'y' || grRaw === '예' ? '있음' : '없음';
+        const memo = String(row['비고']||'').trim();
+        const link = String(row['링크']||'').trim();
+        // situations from memo or dedicated column if present
+        const situations = Object.keys(SIT_MAP).filter(s => memo.includes(s) || menusRaw.includes(s));
+        return { id: Date.now().toString() + Math.random().toString(36).slice(2), name, menus, cat, memo, address, groupRoom, link, situations, menuPrefs: {} };
+      }).filter(r => r.name);
+
+      if (parsed.length === 0) { toast('유효한 데이터가 없어요. 헤더를 확인해주세요.'); return; }
+
+      const mode = confirm(`${parsed.length}개 항목을 불러왔습니다.\n\n[확인] 기존 목록에 추가\n[취소] 기존 목록을 대체`)
+        ? 'append' : 'replace';
+
+      if (mode === 'replace') {
+        DB.restaurants = parsed;
+      } else {
+        DB.restaurants.push(...parsed);
+      }
+      save();
+      renderList();
+      toast(`${parsed.length}개 맛집을 ${mode === 'replace' ? '교체' : '추가'}했어요! 🎉`);
+    } catch(err) {
+      console.error(err);
+      toast('파일 읽기 실패. 형식을 확인해주세요.');
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ── INIT ──
