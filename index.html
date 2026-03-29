@@ -674,7 +674,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.2.14';
+const APP_VERSION = 'v1.2.15';
 
 // ── STATE ──
 let DB = {
@@ -1341,7 +1341,7 @@ function exportData() {
 function handleExcelUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
-  event.target.value = ''; // reset input so same file can be re-uploaded
+  event.target.value = '';
 
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -1352,22 +1352,54 @@ function handleExcelUpload(event) {
 
       if (rows.length === 0) { toast('파일에 데이터가 없어요.'); return; }
 
+      // 헤더 키를 정규화하여 매핑 (공백/특수문자 제거 후 비교)
+      function normalize(s) { return String(s).replace(/\s/g,'').toLowerCase(); }
+      const HEADER_MAP = {
+        '종류':       ['종류'],
+        '장소명':     ['장소명','식당명','가게명','이름','name'],
+        '메인메뉴':   ['메인메뉴','메뉴','menu'],
+        '주소':       ['주소','address'],
+        '단체룸':     ['단체룸/공간보유','단체룸','단체공간','grouproom'],
+        '비고':       ['비고','메모','note','notes','memo'],
+        '링크':       ['링크','url','link'],
+      };
+      // 실제 row 키들을 정규화 → 원본 키 매핑
+      const sampleRow = rows[0];
+      const keyNorm = {};
+      Object.keys(sampleRow).forEach(k => { keyNorm[normalize(k)] = k; });
+      function getCol(aliases) {
+        for (const a of aliases) {
+          const found = keyNorm[normalize(a)];
+          if (found !== undefined) return found;
+        }
+        return null;
+      }
+      const colKind    = getCol(HEADER_MAP['종류']);
+      const colName    = getCol(HEADER_MAP['장소명']);
+      const colMenu    = getCol(HEADER_MAP['메인메뉴']);
+      const colAddr    = getCol(HEADER_MAP['주소']);
+      const colGR      = getCol(HEADER_MAP['단체룸']);
+      const colMemo    = getCol(HEADER_MAP['비고']);
+      const colLink    = getCol(HEADER_MAP['링크']);
+
       const CAT_MAP = { '한식':'한식','중식':'중식','일식':'일식','양식':'양식','분식':'분식','기타':'기타' };
-      const SIT_MAP = { '맑음':'맑음','비':'비','더워':'더워','추워':'추워' };
+      const SIT_KEYS = ['맑음','비','더워','추워'];
+
       const parsed = rows.map(row => {
-        const cat = CAT_MAP[String(row['종류']||'').trim()] || '기타';
-        const name = String(row['장소명']||'').trim();
-        const menusRaw = String(row['메인메뉴']||'').trim();
+        const name = colName ? String(row[colName]||'').trim() : '';
+        if (!name) return null;
+        const catRaw = colKind ? String(row[colKind]||'').trim() : '';
+        const cat = CAT_MAP[catRaw] || '기타';
+        const menusRaw = colMenu ? String(row[colMenu]||'').trim() : '';
         const menus = menusRaw ? menusRaw.split(/[,，\/\n]/).map(m => m.trim()).filter(Boolean) : ['메뉴 미정'];
-        const address = String(row['주소']||'').trim();
-        const grRaw = String(row['단체룸/공간보유']||'').trim();
-        const groupRoom = grRaw === '있음' || grRaw === 'Y' || grRaw === 'y' || grRaw === '예' ? '있음' : '없음';
-        const memo = String(row['비고']||'').trim();
-        const link = String(row['링크']||'').trim();
-        // situations from memo or dedicated column if present
-        const situations = Object.keys(SIT_MAP).filter(s => memo.includes(s) || menusRaw.includes(s));
+        const address = colAddr ? String(row[colAddr]||'').trim() : '';
+        const grRaw = colGR ? String(row[colGR]||'').trim() : '';
+        const groupRoom = ['있음','Y','y','예','yes','true','1'].includes(grRaw) ? '있음' : '없음';
+        const memo = colMemo ? String(row[colMemo]||'').trim() : '';
+        const link = colLink ? String(row[colLink]||'').trim() : '';
+        const situations = SIT_KEYS.filter(s => memo.includes(s) || menusRaw.includes(s));
         return { id: Date.now().toString() + Math.random().toString(36).slice(2), name, menus, cat, memo, address, groupRoom, link, situations, menuPrefs: {} };
-      }).filter(r => r.name);
+      }).filter(Boolean);
 
       if (parsed.length === 0) { toast('유효한 데이터가 없어요. 헤더를 확인해주세요.'); return; }
 
