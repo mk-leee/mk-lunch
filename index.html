@@ -296,7 +296,7 @@
 <div id="screen-home" class="screen active">
   <div class="home-greeting">
     오늘도 고민되시죠?<br>
-    <strong>🍽️ 오늘 뭐 먹지?</strong>
+    <strong>🍽️ 오늘 뭐 먹지? <span id="home-version-display" style="font-size:12px;font-weight:500;color:var(--muted);vertical-align:middle;"></span></strong>
   </div>
 
   <div class="category-filter" id="home-cat-filter">
@@ -872,6 +872,7 @@ function deleteHistory(id) {
 function renderSettings() {
   document.getElementById('exclude-days-val').textContent = DB.settings.excludeDays;
   document.getElementById('app-version-display').textContent = APP_VERSION;
+  document.getElementById('home-version-display').textContent = APP_VERSION;
 }
 function adjustExcludeDays(d) {
   DB.settings.excludeDays = Math.min(14, Math.max(1, DB.settings.excludeDays + d));
