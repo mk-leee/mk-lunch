@@ -322,6 +322,28 @@
   .dot-like    { background: #4CAF50; }
   .dot-dislike { background: #EF5350; }
 
+  /* ── MEAL TOGGLE ── */
+  .meal-toggle {
+    display: flex; gap: 0; margin: 8px 0 4px;
+    background: var(--border); border-radius: 14px; padding: 3px;
+  }
+  .meal-btn {
+    flex: 1; padding: 9px; border-radius: 11px; border: none;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: all 0.2s;
+    background: none; color: var(--muted);
+  }
+  .meal-btn.active {
+    background: var(--surface); color: var(--primary);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+  }
+  .meal-badge {
+    font-size: 11px; font-weight: 700; padding: 2px 7px;
+    border-radius: 8px; margin-right: 4px;
+  }
+  .meal-badge-lunch  { background: #FFF3E0; color: #E65100; }
+  .meal-badge-dinner { background: #EDE7F6; color: #4527A0; }
+
   /* ── SEASON BANNER ── */
   .season-banner {
     display: flex; align-items: center; gap: 8px;
@@ -358,7 +380,12 @@
 <div id="screen-home" class="screen active">
   <div class="home-greeting">
     오늘도 고민되시죠?<br>
-    <strong>🍽️ 오늘 뭐 먹지? <span id="home-version-display" style="font-size:12px;font-weight:500;color:var(--muted);vertical-align:middle;"></span></strong>
+    <strong id="home-greeting-text">🍽️ 오늘 점심 뭐 먹지? <span id="home-version-display" style="font-size:12px;font-weight:500;color:var(--muted);vertical-align:middle;"></span></strong>
+  </div>
+
+  <div class="meal-toggle">
+    <button class="meal-btn active" data-meal="점심" onclick="selectMeal('점심')">🌞 점심</button>
+    <button class="meal-btn" data-meal="저녁" onclick="selectMeal('저녁')">🌙 저녁</button>
   </div>
 
   <div id="season-banner" class="season-banner" style="display:none"></div>
@@ -560,6 +587,13 @@
       <input class="form-input" id="hm-menu" placeholder="예: 냉면, 육전">
     </div>
     <div class="form-group">
+      <label class="form-label">식사 구분</label>
+      <div class="meal-toggle" style="margin:0;">
+        <button class="meal-btn active" data-hmmeal="점심" onclick="selectHistoryMeal('점심')">🌞 점심</button>
+        <button class="meal-btn" data-hmmeal="저녁" onclick="selectHistoryMeal('저녁')">🌙 저녁</button>
+      </div>
+    </div>
+    <div class="form-group">
       <label class="form-label">날짜</label>
       <input class="form-input" id="hm-date" type="date">
     </div>
@@ -602,6 +636,8 @@ let DB = {
 let selectedCatHome = '전체';
 let selectedCatList = '전체';
 let selectedSituation = '전체';
+let selectedMeal = new Date().getHours() < 14 ? '점심' : '저녁';
+let historyMeal = '점심';
 let currentMenuTags = [];
 let currentSitTags = [];
 let selectedCatForm = '한식';
@@ -655,6 +691,24 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── MEAL ──
+function selectMeal(meal) {
+  selectedMeal = meal;
+  document.querySelectorAll('.meal-btn[data-meal]').forEach(b => {
+    b.classList.toggle('active', b.dataset.meal === meal);
+  });
+  const icon = meal === '점심' ? '🌞' : '🌙';
+  document.getElementById('home-greeting-text').innerHTML =
+    `🍽️ 오늘 ${icon} ${meal} 뭐 먹지? <span id="home-version-display" style="font-size:12px;font-weight:500;color:var(--muted);vertical-align:middle;">${APP_VERSION}</span>`;
+}
+
+function selectHistoryMeal(meal) {
+  historyMeal = meal;
+  document.querySelectorAll('.meal-btn[data-hmmeal]').forEach(b => {
+    b.classList.toggle('active', b.dataset.hmmeal === meal);
+  });
 }
 
 // ── SEASON ──
@@ -890,6 +944,8 @@ function openHistoryModal(mode, restaurant = null) {
   const today = new Date().toISOString().slice(0, 10);
   document.getElementById('hm-date').value = today;
   document.getElementById('hm-companion').value = '';
+  historyMeal = selectedMeal;
+  selectHistoryMeal(selectedMeal);
   if (mode === 'eat') {
     document.getElementById('history-modal-title').textContent = '식사 기록';
     document.getElementById('hm-restaurant-display-wrap').style.display = 'block';
@@ -917,7 +973,7 @@ function saveHistoryEntry() {
   const menu = document.getElementById('hm-menu').value.trim();
   if (historyModalMode === 'eat') {
     const r = historyModalRestaurant;
-    DB.history.unshift({ id: Date.now(), rid: r.id, name: r.name, menu: menu || r.menus.join(', '), ts: Date.now(), date, companion });
+    DB.history.unshift({ id: Date.now(), rid: r.id, name: r.name, menu: menu || r.menus.join(', '), ts: Date.now(), date, companion, meal: historyMeal });
     save();
     toast(`${r.name} 기록 완료! 😋`);
     document.getElementById('result-card').classList.remove('revealed');
@@ -930,7 +986,7 @@ function saveHistoryEntry() {
     const name = document.getElementById('hm-restaurant').value.trim();
     if (!name) { toast('식당 이름을 입력해주세요.'); return; }
     const existing = DB.restaurants.find(r => r.name === name);
-    DB.history.unshift({ id: Date.now(), rid: existing ? existing.id : null, name, menu: menu || '-', ts: Date.now(), date, companion });
+    DB.history.unshift({ id: Date.now(), rid: existing ? existing.id : null, name, menu: menu || '-', ts: Date.now(), date, companion, meal: historyMeal });
     save();
     renderHistory();
     toast('식사 기록 완료! 😋');
@@ -1112,10 +1168,13 @@ function renderHistory() {
       ${groups[dateKey].map(h => {
         const r = DB.restaurants.find(x => x.id === h.rid);
         const emoji = r ? (catEmoji[r.cat] || '🍴') : '🍴';
+        const mealBadge = h.meal === '저녁'
+          ? `<span class="meal-badge meal-badge-dinner">🌙 저녁</span>`
+          : `<span class="meal-badge meal-badge-lunch">🌞 점심</span>`;
         return `<div class="history-item">
           <div class="history-emoji">${emoji}</div>
           <div class="history-info">
-            <div class="history-restaurant">${h.name}</div>
+            <div class="history-restaurant">${mealBadge}${h.name}</div>
             <div class="history-menu">${h.menu}</div>
             ${h.companion ? `<div style="font-size:12px;color:var(--muted);margin-top:3px;">👥 ${h.companion}</div>` : ''}
           </div>
@@ -1161,6 +1220,7 @@ function exportData() {
 // ── INIT ──
 load();
 initFilters();
+selectMeal(selectedMeal);
 renderSeasonBanner();
 renderList();
 renderHistory();
