@@ -521,6 +521,10 @@
       <button class="btn btn-outline" onclick="exportData()" style="padding:8px 14px;font-size:13px;">내보내기</button>
     </div>
     <div class="settings-row">
+      <div class="settings-row-label">식사 이력 엑셀 내보내기</div>
+      <button class="btn btn-outline" onclick="exportHistoryExcel()" style="padding:8px 14px;font-size:13px;">📊 엑셀</button>
+    </div>
+    <div class="settings-row">
       <div class="settings-row-label">식사 이력만 초기화</div>
       <button class="btn btn-danger" onclick="clearHistory()" style="padding:8px 14px;font-size:13px;">초기화</button>
     </div>
@@ -674,7 +678,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v1.2.15';
+const APP_VERSION = 'v1.2.16';
 
 // ── STATE ──
 let DB = {
@@ -1337,6 +1341,61 @@ function exportData() {
   a.click();
 }
 
+function buildHistoryExcel(historyItems, filename) {
+  const catEmoji = { '한식':'🍚','중식':'🥟','일식':'🍣','양식':'🍝','분식':'🍢','기타':'🍴' };
+  const rows = historyItems.map(h => {
+    const r = DB.restaurants.find(x => x.id === h.rid);
+    return {
+      '날짜': h.date || new Date(h.ts).toISOString().slice(0,10),
+      '식사구분': h.meal || '점심',
+      '식당명': h.name,
+      '메뉴': h.menu || '',
+      '같이먹은사람': h.companion || '',
+      '카테고리': r ? r.cat : '',
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '식사이력');
+  XLSX.writeFile(wb, filename);
+}
+
+function exportHistoryExcel() {
+  if (DB.history.length === 0) { toast('저장된 이력이 없어요.'); return; }
+  buildHistoryExcel(DB.history, `식사이력_전체_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('엑셀 다운로드 완료! 📊');
+}
+
+// 매월 1일 자동 전월 이력 다운로드
+function checkMonthlyAutoExport() {
+  const today = new Date();
+  if (today.getDate() !== 1) return;
+
+  // 전월 키 (예: "2026-02")
+  const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const prevKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth()+1).padStart(2,'0')}`;
+
+  if ((DB.settings.lastAutoExport || '') === prevKey) return; // 이미 이번 달에 실행됨
+
+  const prevItems = DB.history.filter(h => {
+    const d = h.date || new Date(h.ts).toISOString().slice(0,10);
+    return d.startsWith(prevKey);
+  });
+
+  if (prevItems.length === 0) {
+    DB.settings.lastAutoExport = prevKey; save(); return;
+  }
+
+  setTimeout(() => {
+    const label = `${prevMonth.getFullYear()}년 ${prevMonth.getMonth()+1}월`;
+    if (confirm(`📊 ${label} 식사 이력(${prevItems.length}건)을 자동으로 다운로드할까요?`)) {
+      buildHistoryExcel(prevItems, `식사이력_${prevKey}.xlsx`);
+      toast(`${label} 이력 다운로드 완료!`);
+    }
+    DB.settings.lastAutoExport = prevKey; save();
+  }, 1000);
+}
+
 // ── EXCEL IMPORT ──
 function handleExcelUpload(event) {
   const file = event.target.files[0];
@@ -1430,6 +1489,7 @@ renderSeasonBanner();
 renderList();
 renderHistory();
 renderSettings();
+checkMonthlyAutoExport();
 </script>
 </body>
 </html>
